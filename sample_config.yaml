@@ -1,0 +1,27 @@
+dims: 3
+domain_sz: [1.0,1.0,1.0] # optional
+padding: 0.04
+particle_radius: 0.01 # optional
+materials:
+    -
+        is_liquid: 1
+        density: 1000.0
+        color: [0.1372549 , 0.5372549 , 0.85490196]
+    -
+        is_liquid: 0
+        density: 2000.0
+        color: [0.26666667, 1.        , 0.82352941]
+objects:
+    -
+        material: 0
+        shape: cube # should be either cube, ellipsoid or the path to the obj file (not yet implemented)
+        is_dynamic: 1
+        # cube parameters:
+        start: [0.04, 0.04, 0.04]
+        size: [0.3, 0.3, 0.3]
+        # obj parameters:
+        # TODO: not yet implmented
+        # ellipsoid parameters:
+        # TODO: not yet implmented
+
+
