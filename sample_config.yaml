@@ -1,7 +1,9 @@
 dims: 3
 domain_sz: [1.0,1.0,1.0] # optional
-padding: 0.04
-particle_radius: 0.01 # optional
+particle_radius: 0.01 # optional, support radius will be 4 times this value
+padding: 0.04 # optional, default to support radius
+dt: 0.05
+solver_substep_iteration: 20
 materials:
     -
         is_liquid: 1
@@ -10,12 +12,12 @@ materials:
     -
         is_liquid: 0
         density: 2000.0
+        is_dynamic: 1
         color: [0.26666667, 1.        , 0.82352941]
 objects:
     -
         material: 0
         shape: cube # should be either cube, ellipsoid or the path to the obj file (not yet implemented)
-        is_dynamic: 1
         # cube parameters:
         start: [0.04, 0.04, 0.04]
         size: [0.3, 0.3, 0.3]
@@ -23,5 +25,17 @@ objects:
         # TODO: not yet implmented
         # ellipsoid parameters:
         # TODO: not yet implmented
+solver:
+    type: PBF
+    # PBF parameters
+    # -S_CORR-
+    S_Corr_delta_q: 0.3 # optional, actual value would be this value times support radius, should between 0 and 1, best in [0.1, 0.3]
+    S_Corr_k: 0.0001 # optional, recommanded value as default
+    S_Corr_n: 4 # optional, recommanded value as default
 
+    lambda_epsilon: 100.0 # optional
+
+    # -Confinement / XSPH Viscosity-
+    xsph_c: 0.01
+    vorti_epsilon: 0.01
 
