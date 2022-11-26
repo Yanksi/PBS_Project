@@ -13,6 +13,11 @@ dt = 0.05
 
 lambda_epsilon = 100.0
 
+xsph_c = 0.01
+vorti_epsilon = 0.01
+
+solver_iteration = 20
+
 @ti.data_oriented
 class PBF_Solver:
     def __init__(self, particle_grid: ParticleSystem, config):
@@ -43,6 +48,9 @@ class PBF_Solver:
         self.S_Corr_coeff = - S_Corr_k / poly6_S_Corr ** self.S_Corr_n
         self.dt = config.get("dt", dt)
         self.lambda_epsilon = config["solver"].get("lambda_epsilon", lambda_epsilon)
+        self.xsph_c = config["solver"].get("xsph_c", xsph_c)
+        self.vorti_epsilon = config["solver"].get("vorti_epsilon", vorti_epsilon)
+        self.solver_iteration = config["solver"].get("solver_iteration", solver_iteration)
 
         # used to get rid of compilation error in 2D mode
         dummy = np.eye(3)
@@ -61,19 +69,16 @@ class PBF_Solver:
         return self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d
 
     @ti.func
-    def dd_spiky(self, dist: vec3) -> mat3:
+    def dd_spiky(self, dist: vec3, d2, d) -> mat3:
         eye3 = mat3([[1,0,0], [0,1,0], [0,0,1]])
         result = mat3(0)
-        d2 = dist.dot(dist)
-        if 0 < d2 < self.h**2:
-            d = ti.sqrt(d2)
-            t1 = self.d_spiky_coeff * ti.pow(self.h - d, 2) / d
-            t2 = self.d_spiky_coeff * (self.h**2 - d2) / (d2 * d)
-            result = t1 * eye3 - t2 * dist.outer_product(dist)
+        t1 = self.d_spiky_coeff * ti.pow(self.h - d, 2) / d
+        t2 = self.d_spiky_coeff * (self.h**2 - d2) / (d2 * d)
+        result = t1 * eye3 - t2 * dist.outer_product(dist)
         return result
     
     @ti.func
-    def cross_mat(v: vec3) -> mat3:
+    def cross_mat(self, v: vec3) -> mat3:
         return mat3([
             [0, -v[2], v[1]],
             [v[2], 0, -v[0]],
@@ -150,7 +155,40 @@ class PBF_Solver:
             if self.materials[self.particles[p].material].is_dynamic:
                 self.particles[p].p += self.solver_particles[p].dp
     
+    @ti.func
+    def finalize_task(self, pid, pjd, dist, d2, ret:ti.template()):
+        # TODO: consider for case which the mateiral of the given two particles are different
+        v_ij = self.solver_particles[pjd].v - self.solver_particles[pid].v
+        poly = self.poly6(d2)
+        ret[0] += poly * v_ij
+        dn = ti.sqrt(d2)
+        if self.dim == 3:
+            ret[1] += v_ij.cross(self.d_spiky(dist, dn))
+            ret[2] += self.cross_mat(self.dummy_mat @ v_ij) @ self.dd_spiky(self.dummy_mat @ dist, d2, dn)
+
     @ti.kernel
     def finalize_step(self):
-        # TODO
-        pass
+        for p in self.particles:
+            self.solver_particles[p].v = (self.particles[p].p - self.solver_particles[p].p0) / dt
+        
+        for p in self.particles:
+            if self.materials[self.particles[p].material].is_dynamic:
+                xsph_sum = self.vec(0)
+                omega_sum = vec3(0)
+                d_omega_p = mat3(0)
+                self.particle_grid.for_all_neighbors(p, self.finalize_task, [xsph_sum, omega_sum, d_omega_p])
+                xsph_sum *= self.xsph_c
+                self.solver_particles[p].v += xsph_sum
+                if self.dim == 3:
+                    omega = omega_sum.normalized()
+                    n = d_omega_p @ omega
+                    big_n = n.normalized()
+                    if not omega_sum.norm() == 0.0:
+                        self.vorticity[p] = self.vorti_epsilon * big_n.cross(omega_sum)
+    
+    def step_solver(self, external_acc):
+        self.advect(external_acc)
+        self.particle_grid.counting_sort()
+        for _ in range(self.solver_iteration):
+            self.solve()
+        self.finalize_step()

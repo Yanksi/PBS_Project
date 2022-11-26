@@ -36,6 +36,7 @@ solver:
     lambda_epsilon: 100.0 # optional
 
     # -Confinement / XSPH Viscosity-
-    xsph_c: 0.01
-    vorti_epsilon: 0.01
+    xsph_c: 0.01 # optional
+    vorti_epsilon: 0.01 # optional
+    solver_iteration: 20 # optional
 
