@@ -162,18 +162,8 @@ def boundary_condition(v):
     lower = padding
     upper = world[0] - padding
     # ---True Boundary---
-    if v[0] <= lower:
-        v[0] = lower + ti.random() * b_epsilon
-    elif upper <= v[0]:
-        v[0] = upper - ti.random() * b_epsilon
-    if v[1] <= lower:
-        v[1] = lower + ti.random() * b_epsilon
-    elif upper <= v[1]:
-        v[1] = upper - ti.random() * b_epsilon
-    if v[2] <= lower:
-        v[2] = lower + ti.random() * b_epsilon
-    elif upper <= v[2]:
-        v[2] = upper - ti.random() * b_epsilon
+    for i in ti.static(range(3)):
+        v[i]=ti.math.clamp(v[i],lower,upper)
     return v
 
 
