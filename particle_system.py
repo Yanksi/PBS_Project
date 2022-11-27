@@ -98,12 +98,13 @@ class ParticleSystem:
             elif obj_shape.endswith("obj"):
                 # TODO: implement obj
                 pass
-        self.prefix_sum_executor = ti.algorithms.PrefixSumExecutor(self.num_cells)
+        
         self.total_particle_num = reduce(lambda x, y: x+y, (a.shape[0] for a in self.materials_list))
         self.particle_field = Particle.field(shape=(self.total_particle_num,))
         self.particle_field_alt = Particle.field(shape=(self.total_particle_num,))
         self.particle_grid_id = ti.field(dtype=int, shape=(self.total_particle_num,))
-        self.cell_particle_counts = ti.field(dtype=ti.i32, shape=(self.num_cells + 1,))
+        self.cell_particle_counts = ti.field(dtype=int, shape=(self.num_cells + 1,))
+        self.prefix_sum_executor = ti.algorithms.PrefixSumExecutor(self.num_cells + 1)
 
         idx_base = 0
         for op, om, oc in zip(self.particle_positions_list, self.materials_list, self.colors_list):
