@@ -76,7 +76,7 @@ class ParticleSystem:
         self.particle_count = 0
 
         self.grid_cell_sz = self.support_radius
-        self.grid_num = np.ceil(self.domain_sz / self.grid_cell_sz).astype(int)
+        self.grid_num = self.ivec(np.ceil(self.domain_sz / self.grid_cell_sz).astype(np.int32))
         temp = np.cumprod(self.grid_num)
         self.grid_szs = self.ivec(1, *temp[:-1])
         self.num_cells = int(temp[-1])
@@ -178,7 +178,7 @@ class ParticleSystem:
                 start = self.cell_particle_counts[id]
                 end = self.cell_particle_counts[id + 1]
                 for p_j in range(start, end):
-                    diff = self.particle_field[p_i] - self.particle_field[p_j]
+                    diff = self.particle_field[p_i].p - self.particle_field[p_j].p
                     d2 = diff.dot(diff)
                     if p_i != p_j and d2 < self.support_radius ** 2:
                         task(p_i, p_j, diff, d2, ret)

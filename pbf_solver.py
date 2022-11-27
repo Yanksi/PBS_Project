@@ -70,7 +70,7 @@ class PBF_Solver:
 
     @ti.func
     def dd_spiky(self, dist: vec3, d2, d) -> mat3:
-        eye3 = mat3([[1,0,0], [0,1,0], [0,0,1]])
+        eye3 = ti.Matrix.diag(3, 1)
         result = mat3(0)
         t1 = self.d_spiky_coeff * ti.pow(self.h - d, 2) / d
         t2 = self.d_spiky_coeff * (self.h**2 - d2) / (d2 * d)
@@ -141,10 +141,10 @@ class PBF_Solver:
     def solve(self):
         for pid in self.particles:
             dens_pi_inv = self.materials[self.particles[pid].material].rest_density_inv
-            lower_sum = 0.0
             p_i = 0.0
             d_spiky_i = self.vec(0)
-            self.particle_grid.for_all_neighbors(pid, self.solve_task_lambda, [lower_sum, p_i, d_spiky_i])
+            lower_sum = 0.0
+            self.particle_grid.for_all_neighbors(pid, self.solve_task_lambda, [p_i, d_spiky_i, lower_sum])
             constraint = (p_i * dens_pi_inv) - 1.0
             lower_sum += d_spiky_i.dot(d_spiky_i)
             self.solver_particles[pid].l = -1.0 * (constraint / (lower_sum + self.lambda_epsilon))
@@ -172,7 +172,7 @@ class PBF_Solver:
     @ti.kernel
     def finalize_step(self):
         for p in self.particles:
-            self.solver_particles[p].v = (self.particles[p].p - self.solver_particles[p].p0) / dt
+            self.solver_particles[p].v = (self.particles[p].p - self.solver_particles[p].p0) / self.dt
         
         for p in self.particles:
             if self.materials[self.particles[p].material].is_dynamic:
