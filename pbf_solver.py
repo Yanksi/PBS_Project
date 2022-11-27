@@ -1,22 +1,22 @@
 import taichi as ti
-from taichi.math import vec2, vec3, ivec2, ivec3, mat3
+from taichi.math import vec3, mat3
 from particle_system import ParticleSystem
 import math
 import numpy as np
 
 # default solver parameters
-S_Corr_delta_q = 0.3
-S_Corr_k = 0.0001
-S_Corr_n = 4
+d_S_Corr_delta_q = 0.3
+d_S_Corr_k = 0.0001
+d_S_Corr_n = 4
 
-dt = 0.05
+d_dt = 0.05
 
-lambda_epsilon = 100.0
+d_lambda_epsilon = 100.0
 
-xsph_c = 0.01
-vorti_epsilon = 0.01
+d_xsph_c = 0.01
+d_vorti_epsilon = 0.01
 
-solver_iteration = 20
+d_solver_iteration = 20
 
 @ti.data_oriented
 class PBF_Solver:
@@ -41,16 +41,16 @@ class PBF_Solver:
         self.padding = config.get("padding", self.h)
         self.d_spiky_coeff = -45 / (math.pi * self.h ** 6)
         self.poly6_coeff = 315 / (64 * math.pi * self.h ** 9)
-        S_Corr_delta_q = config["solver"].get("S_Corr_delta_q", S_Corr_delta_q) * self.h
+        S_Corr_delta_q = config["solver"].get("S_Corr_delta_q", d_S_Corr_delta_q) * self.h
         poly6_S_Corr = self.poly6_coeff * (self.h ** 2 - S_Corr_delta_q ** 2) ** 3
-        S_Corr_k = config["solver"].get("S_Corr_k", S_Corr_k)
-        self.S_Corr_n = config["solver"].get("S_Corr_n", S_Corr_n)
+        S_Corr_k = config["solver"].get("S_Corr_k", d_S_Corr_k)
+        self.S_Corr_n = config["solver"].get("S_Corr_n", d_S_Corr_n)
         self.S_Corr_coeff = - S_Corr_k / poly6_S_Corr ** self.S_Corr_n
-        self.dt = config.get("dt", dt)
-        self.lambda_epsilon = config["solver"].get("lambda_epsilon", lambda_epsilon)
-        self.xsph_c = config["solver"].get("xsph_c", xsph_c)
-        self.vorti_epsilon = config["solver"].get("vorti_epsilon", vorti_epsilon)
-        self.solver_iteration = config["solver"].get("solver_iteration", solver_iteration)
+        self.dt = config.get("dt", d_dt)
+        self.lambda_epsilon = config["solver"].get("lambda_epsilon", d_lambda_epsilon)
+        self.xsph_c = config["solver"].get("xsph_c", d_xsph_c)
+        self.vorti_epsilon = config["solver"].get("vorti_epsilon", d_vorti_epsilon)
+        self.solver_iteration = config["solver"].get("solver_iteration", d_solver_iteration)
 
         # used to get rid of compilation error in 2D mode
         dummy = np.eye(3)
@@ -92,21 +92,24 @@ class PBF_Solver:
     @ti.func
     def clip_boundary(self, position):
         lower = self.vec(self.padding)
-        upper = self.world_sz - self.padding
+        upper = self.vec(self.world_sz) - self.vec(self.padding)
         return max(min(position, upper), lower)
     
-
-    @ti.kernel
-    def advect(self, external_acc: ti.Vector):
-        for p in self.particles:
-            if self.materials[self.particles[p].material].is_dynamic:
-                self.solver_particles[p].p0 = self.particles[p].p
-                delta_v = dt * external_acc
-                if self.dim == 3:
-                    delta_v += dt * self.dummy_matT @ self.vorticity[p]
-                    self.vorticity[p] = vec3(0)
-                self.solver_particles[p].v += delta_v
-                self.particles[p].p = self.clip_boundary(self.particles[p].p + dt * self.solver_particles[p].v)
+    def advect(self, external_acc):
+        @ti.kernel
+        def _inner(external_acc: self.vec):
+            for p in self.particles:
+                if self.materials[self.particles[p].material].is_dynamic:
+                    self.solver_particles[p].p0 = self.particles[p].p
+                    delta_v = self.dt * external_acc
+                    if self.dim == 3:
+                        delta_v += self.dt * self.dummy_matT @ self.vorticity[p]
+                        self.vorticity[p] = vec3(0)
+                    self.solver_particles[p].v += delta_v
+                    self.particles[p].p = self.clip_boundary(self.particles[p].p + self.dt * self.solver_particles[p].v)
+        self.__setattr__("advect", _inner)
+        _inner(external_acc)
+        
     
     @ti.func
     def solve_task_lambda(self, pid, pjd, dist, d2, ret:ti.template()):
@@ -187,8 +190,10 @@ class PBF_Solver:
                         self.vorticity[p] = self.vorti_epsilon * big_n.cross(omega_sum)
     
     def step_solver(self, external_acc):
+        print("solver invoked")
         self.advect(external_acc)
         self.particle_grid.counting_sort()
         for _ in range(self.solver_iteration):
             self.solve()
         self.finalize_step()
+        print("solver finalized")

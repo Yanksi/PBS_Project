@@ -2,7 +2,6 @@ import taichi as ti
 from taichi.math import vec2, vec3, ivec2, ivec3
 import numpy as np
 from functools import reduce
-from pbf_solver import PBF_Solver
 
 
 @ti.dataclass
@@ -44,7 +43,11 @@ class ParticleSystem:
 
         self.domain_sz = np.array(configs.get("domain_sz", [domain_axis_sz] * self.dim))
         assert(len(self.domain_sz) == self.dim, "Given domain size and dimension does not match!")
-        
+
+        self.particle_radius = configs.get("particle_radius", particle_radius)
+        self.particle_diameter = 2 * self.particle_radius
+        self.support_radius = self.particle_radius * 4
+        # self.m_V0 = 0.8 * self.particle_diameter ** self.dim
 
         self.materials = Material.field(shape=(len(configs["materials"])))
         for i, m in enumerate(configs["materials"]):
@@ -70,15 +73,10 @@ class ParticleSystem:
                     ti.math.vec3(m["color"])
                 )
 
-        self.particle_radius = configs.get("particle_radius", particle_radius)
-        self.particle_diameter = 2 * self.particle_radius
-        self.support_radius = self.particle_radius * 4
-        # self.m_V0 = 0.8 * self.particle_diameter ** self.dim
-
         self.particle_count = 0
 
         self.grid_cell_sz = self.support_radius
-        self.grid_num = np.ceil(self.domain_sz / self.grid_cell_sz).astype(np.in32)
+        self.grid_num = np.ceil(self.domain_sz / self.grid_cell_sz).astype(int)
         temp = np.cumprod(self.grid_num)
         self.grid_szs = self.ivec(1, *temp[:-1])
         self.num_cells = temp[-1]
@@ -94,7 +92,7 @@ class ParticleSystem:
                 self.particle_positions_list.append(pp)
                 self.materials_list.append(pm)
                 self.colors_list.append(pc)
-            elif obj_shape == "ellipsoid":
+            elif obj_shape == "ellip":
                 # TODO: implement ellipsoid
                 pass
             elif obj_shape.endswith("obj"):
@@ -105,7 +103,7 @@ class ParticleSystem:
         self.particle_field = Particle.field(shape=(self.total_particle_num,))
         self.particle_field_alt = Particle.field(shape=(self.total_particle_num,))
         self.particle_grid_id = ti.field(dtype=int, shape=(self.total_particle_num,))
-        self.cell_particle_counts = ti.field(dtype=int, shape=(self.num_cells + 1,))
+        self.cell_particle_counts = ti.field(dtype=ti.i32, shape=(self.num_cells + 1,))
 
         idx_base = 0
         for op, om, oc in zip(self.particle_positions_list, self.materials_list, self.colors_list):
@@ -114,18 +112,25 @@ class ParticleSystem:
         
     
     @ti.kernel
-    def counting_sort(self):
+    def counting_sort_pre(self):
         self.cell_particle_counts.fill(0)
         for p in self.particle_field:
             id = self.pos2idx(self.particle_field[p].p)
             self.particle_grid_id[p] = id
             self.cell_particle_counts[id] += 1
-        self.prefix_sum_executor.run(self.cell_particle_counts)
+    
+    @ti.kernel
+    def counting_sort_fin(self):
         for p in self.particle_field:
             sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1)
             self.particle_field_alt[sorted_pos] = self.particle_field[p]
         for p in self.particle_field:
             self.particle_field[p] = self.particle_field_alt[p]
+
+    def counting_sort(self):
+        self.counting_sort_pre()
+        self.prefix_sum_executor.run(self.cell_particle_counts)
+        self.counting_sort_fin()
 
     @ti.func
     def get_grid_idx(self, pos):
@@ -148,17 +153,18 @@ class ParticleSystem:
         material_arr: ti.types.ndarray(),
         particle_colors: ti.types.ndarray()
         ):
+        # print(particle_pos.shape)
         for i in range(idx_base, idx_base + particle_num):
-            self.particle_field[i].p = self.vec(particle_pos[i])
-            self.particle_field[i].color = self.vec(particle_colors[i])
-            self.particle_field[i].material = material_arr[i]
+            self.particle_field[i].p = self.vec([particle_pos[i - idx_base, i] for i in range(self.dim)])
+            self.particle_field[i].color = self.vec([particle_colors[i - idx_base, i] for i in range(self.dim)])
+            self.particle_field[i].material = material_arr[i - idx_base]
 
     def generate_particles_for_cube(self, lower_corner, size, material):
         slices = tuple(slice(lower_corner[i], lower_corner[i] + size[i], self.particle_diameter) for i in range(self.dim))
-        particle_positions = np.mgrid[slices].reshape(self.dim, -1)
+        particle_positions = np.mgrid[slices].reshape(self.dim, -1).transpose()
         num_new_particles = particle_positions.shape[0]
-        material_arr = np.full(num_new_particles, material, dtype=np.int32)
-        colors = np.tile(self.materials[material].color)
+        material_arr = np.full(num_new_particles, material, dtype=int)
+        colors = np.tile(self.materials[material].color, [num_new_particles, 1])
         return particle_positions, material_arr, colors
     
     @ti.func
