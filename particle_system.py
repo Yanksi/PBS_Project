@@ -79,7 +79,7 @@ class ParticleSystem:
         self.grid_num = np.ceil(self.domain_sz / self.grid_cell_sz).astype(int)
         temp = np.cumprod(self.grid_num)
         self.grid_szs = self.ivec(1, *temp[:-1])
-        self.num_cells = temp[-1]
+        self.num_cells = int(temp[-1])
 
         self.particle_positions_list = []
         self.materials_list = []
