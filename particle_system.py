@@ -87,17 +87,33 @@ class ParticleSystem:
         for i, m in enumerate(configs["objects"]):
             obj_material = m["material"]
             obj_shape = m["shape"]
+            pp = np.empty([0, 3], dtype=float)
+            pm = np.array([], dtype=int)
+            pc = np.array([0, 3], dtype=float)
             if obj_shape == "cube":
-                pp, pm, pc = self.generate_particles_for_cube(m["start"], m["size"], obj_material)
-                self.particle_positions_list.append(pp)
-                self.materials_list.append(pm)
-                self.colors_list.append(pc)
+                sz = np.array(m["size"])
+                if "start" in m:
+                    start = np.array(m["start"])
+                else:
+                    center = np.array(m["center"])
+                    start = center - sz / 2
+                pp, pm, pc = self.generate_particles_for_cube(start, sz, obj_material)
             elif obj_shape == "ellip":
-                # TODO: implement ellipsoid
-                pass
+                sz = np.array(m["size"])
+                if "start" in m:
+                    start = np.array(m["start"])
+                else:
+                    center = np.array(m["center"])
+                    start = center - sz / 2
+                pp, pm, pc = self.generate_particles_for_ellip(start, sz, obj_material)
             elif obj_shape.endswith("obj"):
                 # TODO: implement obj
                 pass
+            else:
+                continue
+            self.particle_positions_list.append(pp)
+            self.materials_list.append(pm)
+            self.colors_list.append(pc)
         
         self.total_particle_num = reduce(lambda x, y: x+y, (a.shape[0] for a in self.materials_list))
         self.particle_field = Particle.field(shape=(self.total_particle_num,))
@@ -167,6 +183,14 @@ class ParticleSystem:
         material_arr = np.full(num_new_particles, material, dtype=int)
         colors = np.tile(self.materials[material].color, [num_new_particles, 1])
         return particle_positions, material_arr, colors
+    
+    def generate_particles_for_ellip(self, lower_corner, size, material):
+        particle_pos, ma, pc = self.generate_particles_for_cube(lower_corner, size, material)
+        center = np.median(particle_pos, axis=0)
+        particle_pos -= center
+        size_inv = 1 / (size / 2) ** 2
+        measure = (particle_pos ** 2).dot(size_inv) < 1
+        return (particle_pos + center)[measure], ma[measure], pc[measure]
     
     @ti.func
     def for_all_neighbors(self, p_i, task: ti.template(), ret: ti.template()):

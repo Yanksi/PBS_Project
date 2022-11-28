@@ -12,14 +12,16 @@ materials:
 objects:
     -
         material: 0
-        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
-        # cube parameters:
-        start: [0.04, 0.04, 0.04]
-        size: [0.6, 0.6, 0.3]
+        # shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
+        # # cube parameters:
+        # start: [0.04, 0.04, 0.04]
+        # size: [0.6, 0.6, 0.3]
         # obj parameters:
         # TODO: not yet implmented
-        # ellipsoid parameters:
-        # TODO: not yet implmented
+        shape: ellip
+        center: [0.5, 0.5, 0.5] # can use either center or start to define the location
+        # start: [0.0, 0.0, 0.0] # if both are specified, will use start
+        size: [0.3, 0.2, 0.5]
 solver:
     type: PBF
     # PBF parameters
