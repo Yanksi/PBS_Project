@@ -124,7 +124,7 @@ class ParticleSystem:
     def counting_sort_fin(self):
         for p in self.particle_field:
             sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1)
-            self.particle_field_alt[sorted_pos] = self.particle_field[p]
+            self.particle_field_alt[sorted_pos-1] = self.particle_field[p]
         for p in self.particle_field:
             self.particle_field[p] = self.particle_field_alt[p]
 
