@@ -191,10 +191,10 @@ class PBF_Solver:
                         self.vorticity[p] = self.vorti_epsilon * big_n.cross(omega_sum)
     
     def step_solver(self, external_acc):
-        print("solver invoked")
+        # print("solver invoked")
         self.advect(external_acc)
         self.particle_grid.counting_sort()
         for _ in range(self.solver_iteration):
             self.solve()
         self.finalize_step()
-        print("solver finalized")
+        # print("solver finalized")
