@@ -16,9 +16,9 @@ boundary = 20
 dimension = 3
 
 # -Fluid_Setting-
-num_particles = 22000
+num_particles = 12000
 mass = 1.0
-rest_density = 10.0
+rest_density = 1.0
 rest_density_inv = 1.0 / rest_density
 padding = 0.4
 
