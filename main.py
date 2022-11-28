@@ -22,9 +22,9 @@ canvas = window.get_canvas()
 scene = ti.ui.Scene()
 camera = ti.ui.Camera()
 
-camera.position(5.5, 2.5, 4.0)
-camera.up(0.0, 1.0, 0.0)
-camera.lookat(-1.0, 0.0, 0.0)
+camera.position(2, 2, 2)
+camera.up(0.0, 0.0, 1.0)
+camera.lookat(0.0, 0.0, 0.0)
 camera.fov(70)
 scene.set_camera(camera)
 
@@ -43,12 +43,12 @@ while window.running:
 
     if particle_grid.dim == 2:
         ext_acc = ti.math.vec2(0, -9.8) + ad * ti.math.vec2(5, 0)
-        solver.step_solver(ext_acc)
+        # solver.step_solver(ext_acc)
         canvas.set_background_color((0,0,0))
         canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, color=particle_grid.particle_field.color)
     else:
         ext_acc = ti.math.vec3(0,0,-9.8) + ad * ti.math.vec3(5,0,0) + ws * ti.math.vec3(0,5,0)
-        solver.step_solver(ext_acc)
+        # solver.step_solver(ext_acc)
         camera.track_user_inputs(window, movement_speed=0.02, hold_key=ti.ui.LMB)
         scene.set_camera(camera)
 
