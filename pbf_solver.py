@@ -66,7 +66,7 @@ class PBF_Solver:
     
     @ti.func
     def d_spiky(self, d, dn):
-        return self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d
+        return self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d if dn>0 else 0
 
     @ti.func
     def dd_spiky(self, dist: vec3, d2, d) -> mat3:
@@ -149,7 +149,7 @@ class PBF_Solver:
             constraint = (p_i * dens_pi_inv) - 1.0
             lower_sum += d_spiky_i.dot(d_spiky_i)
             self.solver_particles[pid].l = -1.0 * (constraint / (lower_sum + self.lambda_epsilon))
-        
+
         for pid in self.particles:
             dp = self.vec(0)
             self.particle_grid.for_all_neighbors(pid, self.solve_task_delta_p, dp)
@@ -195,6 +195,6 @@ class PBF_Solver:
         self.advect(external_acc)
         self.particle_grid.counting_sort()
         for _ in range(self.solver_iteration):
-            self.solve()
+            self.solve()    
         self.finalize_step()
         # print("solver finalized")
