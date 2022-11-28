@@ -16,9 +16,9 @@ boundary = 20
 dimension = 3
 
 # -Fluid_Setting-
-num_particles = 12000
+num_particles = 22000
 mass = 1.0
-rest_density = 1.0
+rest_density = 10.0
 rest_density_inv = 1.0 / rest_density
 padding = 0.4
 
@@ -66,14 +66,13 @@ class Particle3:
 particles=Particle3.field(shape=(num_particles,))
 grid_id=ti.field(dtype=int,shape=(num_particles,))
 particle_id = ti.field(dtype=int, shape=(num_particles, ))
-list_curr = ti.field(dtype=int, shape=(grid_rows * grid_cols * grid_layers, ))
 num_particle_in_grid=ti.field(dtype=int,shape=(grid_rows * grid_cols * grid_layers + 1,))
 color=ti.Vector.field(3,float,shape=(num_particles,))
 
 
 # --------------------FUNCTIONS--------------------
 
-prefix_sum=ti.algorithms.PrefixSumExecutor(grid_rows * grid_cols * grid_layers)
+prefix_sum=ti.algorithms.PrefixSumExecutor(grid_rows * grid_cols * grid_layers + 1)
 
 @ti.func
 def id2color(id):
@@ -89,7 +88,7 @@ def pbf_update_grid_id():
     for i in particles:
         id = get_grid_id(get_grid(particles[i].p))
         grid_id[i] = id
-        num_particle_in_grid[id + 1] += 1
+        num_particle_in_grid[id] += 1
 
 
 poly6_coeff = 315 / (64 * math.pi * h9)
@@ -194,11 +193,9 @@ def get_grid_id(grid_cord):
 
 @ti.kernel
 def sort_particles():
-    for i in list_curr:
-        list_curr[i] = num_particle_in_grid[i]
     for p in particles:
-        particle_loc = ti.atomic_add(list_curr[grid_id[p]], 1)
-        particle_id[particle_loc] = p
+        particle_loc = ti.atomic_sub(num_particle_in_grid[grid_id[p]], 1)
+        particle_id[particle_loc - 1] = p
 
 max_constraints = 500
 @ti.dataclass
