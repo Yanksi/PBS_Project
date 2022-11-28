@@ -31,6 +31,7 @@ scene.set_camera(camera)
 frame_count = 0
 gui = window.get_gui()
 
+animating = False
 while window.running:
     ad = 0.0
     ws = 0.0
@@ -41,17 +42,22 @@ while window.running:
     if window.is_pressed(ti.ui.UP): ws = 1
     elif window.is_pressed(ti.ui.DOWN): ws = -1
 
+    if window.is_pressed(ti.ui.SPACE): animating = True
+
     if particle_grid.dim == 2:
         ext_acc = ti.math.vec2(0, -9.8) + ad * ti.math.vec2(5, 0)
-        # solver.step_solver(ext_acc)
+        if animating:
+            solver.step_solver(ext_acc)
         canvas.set_background_color((0,0,0))
         canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, color=particle_grid.particle_field.color)
     else:
         ext_acc = ti.math.vec3(0,0,-9.8) + ad * ti.math.vec3(5,0,0) + ws * ti.math.vec3(0,5,0)
-        # solver.step_solver(ext_acc)
+        if animating:
+            solver.step_solver(ext_acc)
         camera.track_user_inputs(window, movement_speed=0.02, hold_key=ti.ui.LMB)
         scene.set_camera(camera)
-
+        scene.ambient_light((0.8, 0.8, 0.8))
+        scene.point_light(pos=(0.5, 1.5, 1.5), color=(1, 1, 1))
         scene.particles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=particle_grid.particle_field.color)
 
         # scene.lines(box_anchors, indices=box_lines_indices, color = (0.99, 0.68, 0.28), width = 1.0)
