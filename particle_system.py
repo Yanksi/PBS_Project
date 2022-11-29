@@ -141,10 +141,10 @@ class ParticleSystem:
         if solver_particle_type is not None:
             self.solver_particles = solver_particle_type.field(shape=(self.total_particle_num,))
             self.solver_particles_alt = solver_particle_type.field(shape=(self.total_particle_num,))
+            self.solver_particle_registered = True
         else:
             self.solver_particles = ti.field(int, shape=())
             self.solver_particles_alt = ti.field(int, shape=())
-        self.solver_particle_registered = True
         return self.solver_particles
 
     @ti.kernel
@@ -169,7 +169,7 @@ class ParticleSystem:
                 self.solver_particles[p] = self.solver_particles_alt[p]
 
     def counting_sort(self):
-        if not self.solver_particle_registered:
+        if not hasattr(self, "solver_particles"):
             print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
         self.prefix_sum_executor.run(self.cell_particle_counts)

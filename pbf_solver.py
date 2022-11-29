@@ -34,10 +34,10 @@ class PBF_Solver:
             p0: self.vec # previous position
             dp: self.vec # delta p
             l: float # lagrange multiplier
+            vort: vec3
         
         self.solver_particles = self.particle_grid.register_solver_particles(SolverParticle)
         # if self.dim == 3:
-        self.vorticity = ti.Vector.field(3, float, shape=(num_particles,))
         self.h = self.particle_grid.support_radius
         self.padding = config.get("padding", self.h)
         self.d_spiky_coeff = -45 / (math.pi * self.h ** 6)
@@ -103,8 +103,8 @@ class PBF_Solver:
                     self.solver_particles[p].p0 = self.particles[p].p
                     delta_v = self.dt * external_acc
                     if self.dim == 3:
-                        delta_v += self.dt * self.dummy_matT @ self.vorticity[p]
-                        self.vorticity[p] = vec3(0)
+                        delta_v += self.dt * self.dummy_matT @ self.solver_particles[p].vort
+                        self.solver_particles[p].vort = vec3(0)
                     self.solver_particles[p].v += delta_v
                     self.particles[p].p = self.clip_boundary(self.particles[p].p + self.dt * self.solver_particles[p].v)
         self.__setattr__("advect", _inner)
@@ -189,7 +189,7 @@ class PBF_Solver:
                     n = d_omega_p @ omega
                     big_n = n.normalized()
                     if not omega_sum.norm() == 0.0:
-                        self.vorticity[p] = self.vorti_epsilon * big_n.cross(omega_sum)
+                        self.solver_particles[p].vort = self.vorti_epsilon * big_n.cross(omega_sum)
     
     def step_solver(self, external_acc):
         # print("solver invoked")

@@ -22,7 +22,7 @@ canvas = window.get_canvas()
 scene = ti.ui.Scene()
 camera = ti.ui.Camera()
 
-camera.position(2, 2, 2)
+camera.position(*particle_grid.domain_sz)
 camera.up(0.0, 0.0, 1.0)
 camera.lookat(0.0, 0.0, 0.0)
 camera.fov(70)
