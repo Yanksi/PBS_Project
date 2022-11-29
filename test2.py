@@ -17,7 +17,7 @@ boundary = 20
 dimension = 3
 
 # -Fluid_Setting-
-num_particles = 10000
+num_particles = 5000
 mass = 1.0
 rest_density = 1.0
 rest_density_inv = 1.0 / rest_density
@@ -71,9 +71,20 @@ list_curr = ti.field(dtype=int, shape=(grid_rows * grid_cols * grid_layers, ))
 num_particle_in_grid=ti.field(dtype=int,shape=(grid_rows * grid_cols * grid_layers + 1,))
 color=ti.Vector.field(3,float,shape=(num_particles,))
 
+Vn,Face,Fn = readmesh()
+V = ti.Vector.field(3,float,shape=(157,))
+Fid = ti.field(int,shape=(3*309,))
+
 F1 = ti.Vector.field(3,float,shape=(309,))
 F2 = ti.Vector.field(3,float,shape=(309,))
 F3 = ti.Vector.field(3,float,shape=(309,))
+
+V.from_numpy(Vn)
+Fid.from_numpy(Fn)
+
+F1.from_numpy(Face[:,0])
+F2.from_numpy(Face[:,1])
+F3.from_numpy(Face[:,2])
 
 # --------------------FUNCTIONS--------------------
 
@@ -226,7 +237,7 @@ def intersect(q1,q2,p1,p2,p3):
     v3 = volume(q1,q2,p1,p2)
     v4 = volume(q1,q2,p2,p3)
     v5 = volume(q1,q2,p3,p1)
-    return v1*v2<=0 and v3*v4>=0 and v3*v5>=0
+    return v1*v2<0 and v3*v4>=0 and v3*v5>=0
 
 
 @ti.kernel
@@ -285,19 +296,25 @@ def pbf_solve():
         particles.dp[p] = delta_p
 
     #check environment constraints
-
     for p in particles.p:
+        q1 = particles.p[p]
+        q2 = particles.p[p]+particles.dp[p]
         for i in range(309):
-            q1 = particles.p[p]
-            q2 = particles.p[p]+particles.dp[p]
             p1 = F1[i]
             p2 = F2[i]
             p3 = F3[i]
             if( intersect( q1,q2,p1,p2,p3 ) ):
                 u = ti.math.cross(p2-p1, p3-p1)
+                u = ti.math.normalize(u)
                 t = -ti.math.dot(q1-p1,u)/ti.math.dot(q2-q1,u)
-                #particles.dp[p] += t*particles.dp[p] + 0.001*u
-                particles.dp[p] -= 0.001*u
+                particles.dp[p] = p1 - q1
+                #print(q1,q2)
+                #print(p1,p2,p3,u)
+                #print(ti.math.dot(q2-q1,u),ti.math.dot(q1-p1,u), t)
+                #particles.dp[p] = t*particles.dp[p] + 0.001*u
+                #particles.dp[p] += (t-1)*particles.dp[p] + 0.001*u
+                #particles.dp[p] -= 0.001*u
+                break
 
     # ---Update position with delta P---
     for p in particles.p:
@@ -361,17 +378,12 @@ def init():
     for i in particles.p:
         pos_x = 2 + 0.8 * (i % 20)+ ti.random() * b_epsilon
         pos_y = 2 + 0.8 * ((i % 400) // 20)+ ti.random() * b_epsilon
-        pos_z = 1 + 0.8 * (i // 400)+ ti.random() * b_epsilon
+        pos_z = 19 - 0.5 * (i // 400)+ ti.random() * b_epsilon
         particles.p[i] = ti.Vector([pos_x, pos_y, pos_z])
         particles.vort[i] = ti.Vector([0.0, 0.0, 0.0])
         particle_id[i] = i
 
-@ti.kernel
-def initMesh():
-    _,Face = readmesh()
-    F1.from_numpy(Face[:,0])
-    F2.from_numpy(Face[:,1])
-    F3.from_numpy(Face[:,2])
+
 
 def main():
     init()
@@ -392,6 +404,7 @@ def main():
         scene.ambient_light((0.8, 0.8, 0.8))
         scene.point_light(pos=(0.5, 1.5, 1.5), color=(1, 1, 1))
         scene.particles(particles.p, color = (0.19, 0.26, 0.68),per_vertex_color=color, radius = 0.2)
+        scene.mesh(V,Fid)
         # ---Control Waves---
         ad = 0.0
         ws = 0.0
