@@ -50,28 +50,37 @@ class ParticleSystem:
         # self.m_V0 = 0.8 * self.particle_diameter ** self.dim
 
         self.materials = Material.field(shape=(len(configs["materials"])))
+        particle_volumn = self.particle_diameter ** self.dim
         for i, m in enumerate(configs["materials"]):
-            if m["is_liquid"]:
-                if self.dim == 3:
-                    represented_volumn = 4/3 * np.pi * (self.particle_radius * liquid_volumn_k) ** 3 / 0.74
-                else:
-                    represented_volumn = np.pi * (self.particle_radius * liquid_volumn_k) ** 2 / 0.907
-                self.materials[i] = Material(
-                    1,
-                    1,
-                    represented_volumn * m["density"],
-                    1 / m["density"],
-                    ti.math.vec3(m["color"])
-                )
-            else:
-                represented_volumn = self.particle_diameter ** 3
-                self.materials[i] = Material(
-                    0,
-                    m.get("is_dynamic", 1),
-                    represented_volumn * m["density"],
-                    1 / m["density"],
-                    ti.math.vec3(m["color"])
-                )
+            is_liquid = m["is_liquid"]
+            self.materials[i] = Material(
+                is_liquid,
+                m.get("is_dynamic", 1) if not is_liquid else 1,
+                particle_volumn * m["density"],
+                1 / m["density"],
+                ti.math.vec3(m["color"])
+            )
+            # if m["is_liquid"]:
+            #     if self.dim == 3:
+            #         represented_volumn = 4/3 * np.pi * (self.particle_radius * liquid_volumn_k) ** 3 / 0.74
+            #     else:
+            #         represented_volumn = np.pi * (self.particle_radius * liquid_volumn_k) ** 2 / 0.907
+            #     self.materials[i] = Material(
+            #         1,
+            #         1,
+            #         represented_volumn * m["density"],
+            #         1 / m["density"],
+            #         ti.math.vec3(m["color"])
+            #     )
+            # else:
+            #     represented_volumn = self.particle_diameter ** 3
+            #     self.materials[i] = Material(
+            #         0,
+            #         m.get("is_dynamic", 1),
+            #         represented_volumn * m["density"],
+            #         1 / m["density"],
+            #         ti.math.vec3(m["color"])
+            #     )
 
         self.particle_count = 0
 
