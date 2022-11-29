@@ -17,7 +17,7 @@ boundary = 20
 dimension = 3
 
 # -Fluid_Setting-
-num_particles = 5000
+num_particles = 10000
 mass = 1.0
 rest_density = 1.0
 rest_density_inv = 1.0 / rest_density
@@ -71,13 +71,14 @@ list_curr = ti.field(dtype=int, shape=(grid_rows * grid_cols * grid_layers, ))
 num_particle_in_grid=ti.field(dtype=int,shape=(grid_rows * grid_cols * grid_layers + 1,))
 color=ti.Vector.field(3,float,shape=(num_particles,))
 
-Vn,Face,Fn = readmesh()
-V = ti.Vector.field(3,float,shape=(157,))
-Fid = ti.field(int,shape=(3*309,))
+nv,nf,Vn,Face,Fn = readmesh()
+print(nv,nf)
+V = ti.Vector.field(3,float,shape=(nv,))
+Fid = ti.field(int,shape=(3*nf,))
 
-F1 = ti.Vector.field(3,float,shape=(309,))
-F2 = ti.Vector.field(3,float,shape=(309,))
-F3 = ti.Vector.field(3,float,shape=(309,))
+F1 = ti.Vector.field(3,float,shape=(nf,))
+F2 = ti.Vector.field(3,float,shape=(nf,))
+F3 = ti.Vector.field(3,float,shape=(nf,))
 
 V.from_numpy(Vn)
 Fid.from_numpy(Fn)
@@ -296,8 +297,9 @@ def pbf_solve():
         particles.dp[p] = delta_p
 
     #check environment constraints
+
     for p in particles.p:
-        q1 = particles.p[p]
+        q1 = particles.p0[p]
         q2 = particles.p[p]+particles.dp[p]
         for i in range(309):
             p1 = F1[i]
@@ -307,11 +309,15 @@ def pbf_solve():
                 u = ti.math.cross(p2-p1, p3-p1)
                 u = ti.math.normalize(u)
                 t = -ti.math.dot(q1-p1,u)/ti.math.dot(q2-q1,u)
-                particles.dp[p] = p1 - q1
+                
+                #particles.dp[p] = p1 - q1
                 #print(q1,q2)
                 #print(p1,p2,p3,u)
                 #print(ti.math.dot(q2-q1,u),ti.math.dot(q1-p1,u), t)
-                #particles.dp[p] = t*particles.dp[p] + 0.001*u
+                particles.dp[p] = t*particles.dp[p] + 0.01*u
+
+                #print(q1,q2, q1 + particles.dp[p])
+                #print(volume(q1+particles.dp[p],p1,p2,p3))
                 #particles.dp[p] += (t-1)*particles.dp[p] + 0.001*u
                 #particles.dp[p] -= 0.001*u
                 break

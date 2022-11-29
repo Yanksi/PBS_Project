@@ -46,6 +46,21 @@ def readmesh():
     Fid = Fid.flatten()
     print(Fid.shape)
     
-    return V,F,Fid
+    return V.shape[0],F.shape[0],V,F,Fid
+
+def readmesh2():
+    V = [ [10.,0.,0.],[10.,20.,0.],[10.,0.,20.],[10.,20.,20.] ]
+    Fid = [[0,1,2],[1,3,2]]
+
+    F = []
+    for face in Fid:
+        F.append([ V[face[0]], V[face[1]], V[face[2]] ])
+    
+    V = np.array(V)
+    F = np.array(F)
+    Fid = np.array(Fid)
+    Fid = Fid.flatten()
+    return 4,2,V,F,Fid
+
 
 readmesh()
