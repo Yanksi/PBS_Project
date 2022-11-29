@@ -71,6 +71,8 @@ num_particle_in_grid=ti.field(dtype=int,shape=(grid_rows * grid_cols * grid_laye
 color=ti.Vector.field(3,float,shape=(num_particles,))
 
 
+
+
 # --------------------FUNCTIONS--------------------
 
 prefix_sum=ti.algorithms.PrefixSumExecutor(grid_rows * grid_cols * grid_layers)

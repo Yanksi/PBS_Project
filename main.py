@@ -4,7 +4,7 @@ import yaml
 import taichi as ti
 
 ti.init(
-    arch=ti.gpu
+    arch=ti.gpu,debug=True
 )
 
 with open("pbf_config.yml", "r") as f:

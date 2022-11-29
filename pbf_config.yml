@@ -1,27 +1,27 @@
 dims: 3
-domain_sz: [1.0,1.0,1.0] # optional
-particle_radius: 0.01 # optional, support radius will be 4 times this value
-padding: 0.04 # optional, default to support radius
+domain_sz: [20,20,20] # optional
+particle_radius: 0.25 # optional, support radius will be 4 times this value
+padding: 0.4 # optional, default to support radius
 dt: 0.05
 solver_substep_iteration: 20
 materials:
     -
         is_liquid: 1
-        density: 1000.0
+        density: 1
         color: [0.26666667, 1.        , 0.82352941]
 objects:
     -
         material: 0
-        # shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
-        # # cube parameters:
-        # start: [0.04, 0.04, 0.04]
-        # size: [0.6, 0.6, 0.3]
+        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
+        # cube parameters:
+        start: [1, 1, 1]
+        size: [10, 10, 15]
         # obj parameters:
         # TODO: not yet implmented
-        shape: ellip
-        center: [0.5, 0.5, 0.5] # can use either center or start to define the location
-        # start: [0.0, 0.0, 0.0] # if both are specified, will use start
-        size: [0.3, 0.2, 0.5]
+        # shape: ellip
+        # center: [0.5, 0.5, 0.5] # can use either center or start to define the location
+        # # start: [0.0, 0.0, 0.0] # if both are specified, will use start
+        # size: [0.3, 0.2, 0.5]
 solver:
     type: PBF
     # PBF parameters

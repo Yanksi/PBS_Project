@@ -3,56 +3,66 @@ from taichi.math import vec3, mat3
 import numpy as np
 import math
 
+
+from particle_system import ParticleSystem
+from pbf_solver import PBF_Solver
+import yaml
+with open("pbf_config.yml", "r") as f:
+    try:
+        config = yaml.safe_load(f)
+    except yaml.YAMLError as exc:
+        print(exc)
+        exit()
 ti.init(arch=ti.gpu, device_memory_GB=4)
+
+particle_grid = ParticleSystem(config)
+solver = PBF_Solver(particle_grid, config)
 
 # -----PARAMETERS-----
 
 # -WORLD-
-dt = 1.0 / 20.0
-solve_iteration = 30
-res = (500, 500)
-world = (20, 20, 20)
-boundary = 20
-dimension = 3
+dt=solver.dt
+
+solve_iteration=solver.solver_iteration
+
+world = particle_grid.domain_sz
 
 # -Fluid_Setting-
-num_particles = 22000
+num_particles=particle_grid.total_particle_num
 mass = 1.0
-rest_density = 10.0
-rest_density_inv = 1.0 / rest_density
-padding = 0.4
+mass=particle_grid.materials[0].mass_per_particle
+print(mass)
+rest_density_inv = particle_grid.materials[0].rest_density_inv
+print(rest_density_inv)
+padding = solver.padding
 
 
 # -Neighbours_Setting-
-h = 1.0
+h = particle_grid.support_radius
+print(h)
 h2 = h**2
 h6 = h**6
 h9 = h**9
-max_neighbour = 4000
 
 # -Grid_Setting-
 grid_rows = int(world[0] / h)
 grid_cols = int(world[1] / h)
 grid_layers = int(world[2] / h)
-max_particle_in_grid = 4000
+grid_rows,grid_cols,grid_layers=particle_grid.grid_num
+print(grid_rows,grid_cols,grid_layers)
 
-# -Boundary Epsilon-
-b_epsilon = 0.01
 
 # -LAMBDAS-
-lambda_epsilon = 100.0
+lambda_epsilon = solver.lambda_epsilon
 
 # -S_CORR-
-S_Corr_delta_q = 0.3
-S_Corr_k = 0.0001
-S_Corr_n = 4
+
+S_Corr_n = solver.S_Corr_n
 
 # -Confinement/ XSPH Viscosity-
-xsph_c = 0.01
-vorti_epsilon = 0.01
+xsph_c = solver.xsph_c
+vorti_epsilon = solver.vorti_epsilon
 
-# -Gradient Approx. delta difference-
-g_del = 0.01
 
 # -----FIELDS-----
 @ti.dataclass
@@ -63,8 +73,12 @@ class Particle3:
     v: vec3 # velocity
     vort: vec3 # velocity
     l: float # lagrange multiplier
-particles=Particle3.field(shape=(num_particles,))
-grid_id=ti.field(dtype=int,shape=(num_particles,))
+
+
+
+particles_field=particle_grid.particle_field
+solver_particle=solver.solver_particles
+grid_id=particle_grid.particle_grid_id
 particle_id = ti.field(dtype=int, shape=(num_particles, ))
 num_particle_in_grid=ti.field(dtype=int,shape=(grid_rows * grid_cols * grid_layers + 1,))
 color=ti.Vector.field(3,float,shape=(num_particles,))
@@ -85,8 +99,8 @@ def id2color(id):
 @ti.kernel
 def pbf_update_grid_id():
     num_particle_in_grid.fill(0)
-    for i in particles:
-        id = get_grid_id(get_grid(particles[i].p))
+    for i in particles_field:
+        id = get_grid_id(get_grid(particles_field[i].p))
         grid_id[i] = id
         num_particle_in_grid[id] += 1
 
@@ -109,7 +123,7 @@ def poly6_nocheck(d2:float) -> float:
 #     sqnorm=dist.dot(dist)
 #     return 315/(64*math.pi*h**9)  * (h**2 - sqnorm) **3 if 0<sqnorm< h**2 else 0.0
 
-d_spiky_coeff = -45 / (np.pi * h6)
+d_spiky_coeff = solver.d_spiky_coeff
 @ti.func
 def spiky(d:vec3) -> vec3:
     result = vec3(0)
@@ -143,8 +157,9 @@ def cross_mat(v: vec3) -> mat3:
     ])
 
 
-poly6_S_Corr = poly6_coeff * (h2 - S_Corr_delta_q**2)**3 if S_Corr_delta_q < h2 else 0.0
-S_Corr_coeff = - S_Corr_k / poly6_S_Corr**S_Corr_n
+
+S_Corr_coeff=solver.S_Corr_coeff
+print(S_Corr_coeff)
 @ti.func
 def S_Corr(d: vec3) -> ti.f32:
     return S_Corr_coeff * ti.pow(poly6(d), S_Corr_n)
@@ -180,12 +195,12 @@ def pbf_pred_pos(ad: float, ws: float):
     gravity = ti.Vector([0.0, 0.0, -9.8])
     ad_force = ti.Vector([5.0, 0.0, 0.0])
     ws_force = ti.Vector([0.0, 5.0, 0.0])
-    for i in particles:
-        particles.p0[i] = particles.p[i]
-        particles.v[i] += dt * (gravity + ad * ad_force + ws * ws_force + particles.vort[i])
+    for i in particles_field:
+        solver_particle.p0[i] = particles_field.p[i]
+        solver_particle.v[i] += dt * (gravity + ad * ad_force + ws * ws_force + solver.vorticity[i])
         # ---predict position---
-        particles.p[i] = boundary_condition(particles.p[i]+ dt * particles.v[i])
-        particles.vort[i]=ti.Vector([0.0, 0.0, 0.0])
+        particles_field.p[i] = boundary_condition(particles_field.p[i]+ dt * solver_particle.v[i])
+        solver.vorticity[i]=ti.Vector([0.0, 0.0, 0.0])
 
 @ti.func
 def get_grid_id(grid_cord):
@@ -193,7 +208,7 @@ def get_grid_id(grid_cord):
 
 @ti.kernel
 def sort_particles():
-    for p in particles:
+    for p in particles_field:
         particle_loc = ti.atomic_sub(num_particle_in_grid[grid_id[p]], 1)
         particle_id[particle_loc - 1] = p
 
@@ -210,87 +225,76 @@ curr_constraint = ti.field(dtype=int, shape=(num_particles, ))
 
 @ti.kernel
 def pbf_solve():
-    curr_constraint.fill(0)
-    # for p in particles.p:
-    for pid in particle_id:
-        p = particle_id[pid]
-        pos = particles.p[p]
+    # ---Calculate lambdas---
+    for p in particles_field.p:
+        pos = particles_field.p[p]
         lower_sum = 0.0
         p_i = 0.0
         spiky_i = ti.Vector([0.0, 0.0, 0.0])
         for offset in ti.grouped(ti.ndrange(*((-1, 2),) * 3)):
-            nb = get_grid(particles.p[p])+offset
-            if 0 <= nb[0] <= grid_cols and 0 <= nb[1] <= grid_rows and 0 <= nb[2] <= grid_layers:
-                id = get_grid_id(nb)
-                start = num_particle_in_grid[id]
-                end = num_particle_in_grid[id + 1]
+            nb=get_grid(particles_field.p[p])+offset
+            if 0 <= nb[0] <= grid_cols and 0 <= nb[1] <= grid_rows  and 0 <= nb[2] <= grid_layers:
+                id=get_grid_id(nb)
+                start= num_particle_in_grid[id-1] if id!=0 else 0
+                end= num_particle_in_grid[id]
                 for i in range(start,end):
                     # ---Poly6---
-                    nb_pos = particles.p[particle_id[i]]
-                    d = pos - nb_pos
-                    d2 = d.dot(d)
-                    if 0 < d2 < h2:
-                        # constraint_loc = ti.atomic_add(curr_constraint[p], 1)
-                        active_constrains[p, curr_constraint[p]] = ActiveNeighbor(particle_id[i], d, d2, ti.sqrt(d2))
-                        curr_constraint[p] += 1
-    # ---Calculate lambdas---
-    for p in particles:
-        lower_sum = 0.0
-        p_i = 0.0
-        spiky_i = ti.Vector([0.0, 0.0, 0.0])
-        for c in range(curr_constraint[p]):
-            active_nb = active_constrains[p, c]
-            nb_id = active_nb.id
-            p_i += mass * poly6_nocheck(active_nb.d2)
-            # ---Spiky---
-            s = spiky_nocheck(active_nb.d, active_nb.dn) * rest_density_inv
-            spiky_i += s
-            lower_sum += s.dot(s)
+                    nb_pos = particles_field.p[i]
+                    p_i += mass * poly6(pos - nb_pos)
+                    # ---Spiky---
+                    s = spiky(pos - nb_pos) * rest_density_inv
+                    spiky_i += s
+                    lower_sum += s.dot(s)
         constraint = (p_i * rest_density_inv) - 1.0
         lower_sum += spiky_i.dot(spiky_i)
-        particles.l[p] = -1.0 * (constraint / (lower_sum + lambda_epsilon))
+        solver_particle.l[p] = -1.0 * (constraint / (lower_sum + lambda_epsilon))
     # ---Calculate delta P---
-    # for p in particles.p:
-    for p in particles:
+    for p in particles_field.p:
         delta_p = ti.Vector([0.0, 0.0, 0.0])
-        for c in range(curr_constraint[p]):
-            active_nb = active_constrains[p, c]
-            nb_id = active_nb.id
-            # ---S_Corr---
-            scorr = S_Corr_nocheck(active_nb.d2)
-            left = particles.l[p] + particles.l[nb_id] + scorr
-            right = spiky_nocheck(active_nb.d, active_nb.dn)
-            delta_p += left * rest_density_inv * right
-        particles.dp[p] = delta_p
+        pos = particles_field.p[p]
+        for offset in ti.grouped(ti.ndrange(*((-1, 2),) * 3)):
+            nb=get_grid(particles_field.p[p])+offset
+            if 0 <= nb[0] <= grid_cols and 0 <= nb[1] <= grid_rows  and 0 <= nb[2] <= grid_layers:
+                id=get_grid_id(nb)
+                start= num_particle_in_grid[id-1] if id!=0 else 0
+                end= num_particle_in_grid[id]
+                for i in range(start,end):
+                    nb_pos = particles_field.p[i]
+                    # ---S_Corr---
+                    scorr = S_Corr(pos - nb_pos)
+                    left = solver_particle.l[p] + solver_particle.l[i] + scorr
+                    right = spiky(pos - nb_pos)
+                    delta_p += left * right * rest_density_inv
+        solver_particle.dp[p] = delta_p
     # ---Update position with delta P---
-    for p in particles.p:
-        particles.p[p] += particles.dp[p]
+    for p in particles_field.p:
+        particles_field.p[p] += solver_particle.dp[p]
 
 
 @ti.kernel
 def pbf_update():
-    for i in particles:
+    for i in particles_field:
         color[i] = id2color(grid_id[i])
     # ---Update Velocity---
-    for v in particles.v:
-        particles.v[v] = (particles.p[v] - particles.p0[v]) / dt
+    for v in solver_particle.v:
+        solver_particle.v[v] = (particles_field.p[v] - solver_particle.p0[v]) / dt
     # ---Confinement/ XSPH Viscosity---
-    # for p in particles.p:
-    for pid in particle_id:
-        p = particle_id[pid]
-        pos = particles.p[p]
+    for p in particles_field.p:
+    # for pid in particle_id:
+        # p = particle_id[pid]
+        pos = particles_field.p[p]
         xsph_sum = vec3(0)
         omega_sum = vec3(0)
         d_omega_p = mat3(0)
         for offset in ti.grouped(ti.ndrange(*((-1, 2),) * 3)):
-            nb = get_grid(particles.p[p])+offset
+            nb = get_grid(particles_field.p[p])+offset
             if 0 <= nb[0] <= grid_cols and 0 <= nb[1] <= grid_rows  and 0 <= nb[2] <= grid_layers:
                 id = get_grid_id(nb)
                 start = num_particle_in_grid[id]
                 end = num_particle_in_grid[id + 1]
                 for i in range(start,end):
-                    nb_pos = particles.p[particle_id[i]]
-                    v_ij = particles.v[particle_id[i]] - particles.v[p]
+                    nb_pos = particles_field.p[i]
+                    v_ij = solver_particle.v[i] - solver_particle.v[p]
                     dist = pos - nb_pos
                     # ---Vorticity---
                     omega_sum += v_ij.cross(spiky(dist))
@@ -303,17 +307,18 @@ def pbf_update():
         n = d_omega_p @ omega
         big_n = n.normalized()
         if not omega_sum.norm() == 0.0:
-            particles.vort[p] = vorti_epsilon * big_n.cross(omega_sum)
+            solver.vorticity[p] = vorti_epsilon * big_n.cross(omega_sum)
         # ---Viscosity---
         xsph_sum *= xsph_c
-        particles.v[p] += xsph_sum
+        solver_particle.v[p] += xsph_sum
 
 def pbf(ad, ws):
     pbf_pred_pos(ad, ws)
     pbf_update_grid_id()
     prefix_sum.run(num_particle_in_grid)
-    sort_particles()
-    # ti.algorithms.parallel_sort(grid_id,particles)
+    # sort_particles()
+    # particle_grid.counting_sort()
+    ti.algorithms.parallel_sort(grid_id,particles_field)
     for _ in range(solve_iteration):
         pbf_solve()
     pbf_update()
@@ -321,12 +326,12 @@ def pbf(ad, ws):
 
 @ti.kernel
 def init():
-    for i in particles.p:
-        pos_x = 2 + 0.8 * (i % 20)+ ti.random() * b_epsilon
-        pos_y = 2 + 0.8 * ((i % 400) // 20)+ ti.random() * b_epsilon
-        pos_z = 1 + 0.8 * (i // 400)+ ti.random() * b_epsilon
-        particles.p[i] = ti.Vector([pos_x, pos_y, pos_z])
-        particles.vort[i] = ti.Vector([0.0, 0.0, 0.0])
+    for i in particles_field.p:
+        # pos_x = 2 + 0.8 * (i % 20)+ ti.random() * b_epsilon
+        # pos_y = 2 + 0.8 * ((i % 400) // 20)+ ti.random() * b_epsilon
+        # pos_z = 1 + 0.8 * (i // 400)+ ti.random() * b_epsilon
+        # particles_field.p[i] = ti.Vector([pos_x, pos_y, pos_z])
+        solver.vorticity[i] = ti.Vector([0.0, 0.0, 0.0])
         particle_id[i] = i
 
 def main():
@@ -347,7 +352,7 @@ def main():
         scene.set_camera(camera)
         scene.ambient_light((0.8, 0.8, 0.8))
         scene.point_light(pos=(0.5, 1.5, 1.5), color=(1, 1, 1))
-        scene.particles(particles.p, color = (0.19, 0.26, 0.68),per_vertex_color=color, radius = 0.2)
+        scene.particles(particles_field.p, color = (0.19, 0.26, 0.68),per_vertex_color=color, radius = 0.2)
         # ---Control Waves---
         ad = 0.0
         ws = 0.0
