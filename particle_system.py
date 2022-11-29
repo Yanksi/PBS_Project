@@ -130,13 +130,23 @@ class ParticleSystem:
         self.particle_grid_id = ti.field(dtype=int, shape=(self.total_particle_num,))
         self.cell_particle_counts = ti.field(dtype=int, shape=(self.num_cells + 1,))
         self.prefix_sum_executor = ti.algorithms.PrefixSumExecutor(self.num_cells + 1)
+        self.solver_particle_registered = False
 
         idx_base = 0
         for op, om, oc in zip(self.particle_positions_list, self.materials_list, self.colors_list):
             self._add_obj(idx_base, len(op), op, om, oc)
             idx_base += len(op)
         
-    
+    def register_solver_particles(self, solver_particle_type):
+        if solver_particle_type is not None:
+            self.solver_particles = solver_particle_type.field(shape=(self.total_particle_num,))
+            self.solver_particles_alt = solver_particle_type.field(shape=(self.total_particle_num,))
+        else:
+            self.solver_particles = ti.field(int, shape=())
+            self.solver_particles_alt = ti.field(int, shape=())
+        self.solver_particle_registered = True
+        return self.solver_particles
+
     @ti.kernel
     def counting_sort_pre(self):
         self.cell_particle_counts.fill(0)
@@ -148,12 +158,19 @@ class ParticleSystem:
     @ti.kernel
     def counting_sort_fin(self):
         for p in self.particle_field:
-            sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1)
-            self.particle_field_alt[sorted_pos-1] = self.particle_field[p]
+            sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1) - 1
+            self.particle_field_alt[sorted_pos] = self.particle_field[p]
+            if self.solver_particle_registered:
+                self.solver_particles_alt[sorted_pos] = self.solver_particles[p]
+
         for p in self.particle_field:
             self.particle_field[p] = self.particle_field_alt[p]
+            if self.solver_particle_registered:
+                self.solver_particles[p] = self.solver_particles_alt[p]
 
     def counting_sort(self):
+        if not self.solver_particle_registered:
+            print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
         self.prefix_sum_executor.run(self.cell_particle_counts)
         self.counting_sort_fin()

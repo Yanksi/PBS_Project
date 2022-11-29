@@ -34,7 +34,8 @@ class PBF_Solver:
             p0: self.vec # previous position
             dp: self.vec # delta p
             l: float # lagrange multiplier
-        self.solver_particles = SolverParticle.field(shape=(num_particles,))
+        
+        self.solver_particles = self.particle_grid.register_solver_particles(SolverParticle)
         # if self.dim == 3:
         self.vorticity = ti.Vector.field(3, float, shape=(num_particles,))
         self.h = self.particle_grid.support_radius
