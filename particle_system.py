@@ -53,7 +53,7 @@ class ParticleSystem:
         for i, m in enumerate(configs["materials"]):
             if m["is_liquid"]:
                 if self.dim == 3:
-                    represented_volumn = 4/3 * np.pi * (self.particle_radius * liquid_volumn_k) ** 3 / 0.74
+                    represented_volumn = (3*self.particle_radius)  ** 3 
                 else:
                     represented_volumn = np.pi * (self.particle_radius * liquid_volumn_k) ** 2 / 0.907
                 self.materials[i] = Material(
