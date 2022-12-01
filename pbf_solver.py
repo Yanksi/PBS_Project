@@ -93,7 +93,7 @@ class PBF_Solver:
     def clip_boundary(self, position):
         lower = self.vec(self.padding)
         upper = self.vec(self.world_sz) - self.vec(self.padding)
-        return max(min(position, upper), lower)
+        return ti.max(ti.min(position, upper), lower)
     
     def advect(self, external_acc):
         @ti.kernel
@@ -184,12 +184,12 @@ class PBF_Solver:
                 self.particle_grid.for_all_neighbors(p, self.finalize_task, [xsph_sum, omega_sum, d_omega_p])
                 xsph_sum *= self.xsph_c
                 self.solver_particles[p].v += xsph_sum
-                if self.dim == 3:
-                    omega = omega_sum.normalized()
-                    n = d_omega_p @ omega
-                    big_n = n.normalized()
-                    if not omega_sum.norm() == 0.0:
-                        self.solver_particles[p].vort = self.vorti_epsilon * big_n.cross(omega_sum)
+                # if self.dim == 3:
+                #     omega = omega_sum.normalized()
+                #     n = d_omega_p @ omega
+                #     big_n = n.normalized()
+                #     if not omega_sum.norm() == 0.0:
+                #         self.solver_particles[p].vort = self.vorti_epsilon * big_n.cross(omega_sum)
     
     def step_solver(self, external_acc):
         # print("solver invoked")
