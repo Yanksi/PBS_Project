@@ -24,7 +24,6 @@ class PBF_Solver:
         self.particle_grid = particle_grid
         self.dim = self.particle_grid.dim
         self.world_sz = self.particle_grid.domain_sz
-        num_particles = self.particle_grid.total_particle_num
         self.vec = self.particle_grid.vec
         self.particles = self.particle_grid.particle_field
         self.materials = self.particle_grid.materials
@@ -37,16 +36,17 @@ class PBF_Solver:
             vort: vec3
         
         self.solver_particles = self.particle_grid.register_solver_particles(SolverParticle)
-        # if self.dim == 3:
         self.h = self.particle_grid.support_radius
         self.padding = config.get("padding", self.h)
         self.d_spiky_coeff = -45 / (math.pi * self.h ** 6)
         self.poly6_coeff = 315 / (64 * math.pi * self.h ** 9)
+
         S_Corr_delta_q = config["solver"].get("S_Corr_delta_q", d_S_Corr_delta_q) * self.h
         poly6_S_Corr = self.poly6_coeff * (self.h ** 2 - S_Corr_delta_q ** 2) ** 3
         S_Corr_k = config["solver"].get("S_Corr_k", d_S_Corr_k)
         self.S_Corr_n = config["solver"].get("S_Corr_n", d_S_Corr_n)
         self.S_Corr_coeff = - S_Corr_k / poly6_S_Corr ** self.S_Corr_n
+        
         self.dt = config.get("dt", d_dt)
         self.lambda_epsilon = config["solver"].get("lambda_epsilon", d_lambda_epsilon)
         self.xsph_c = config["solver"].get("xsph_c", d_xsph_c)
