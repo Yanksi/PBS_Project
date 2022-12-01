@@ -82,8 +82,6 @@ class ParticleSystem:
             #         ti.math.vec3(m["color"])
             #     )
 
-        self.particle_count = 0
-
         self.grid_cell_sz = self.support_radius
         self.grid_num = self.ivec(np.ceil(self.domain_sz / self.grid_cell_sz).astype(np.int32))
         temp = np.cumprod(self.grid_num)
@@ -180,7 +178,7 @@ class ParticleSystem:
     
     def sort_pre_checker(self):
         temp = self.cell_particle_counts.to_numpy()
-        for i in range(self.particle_count):
+        for i in range(self.total_particle_num):
             particle_loc = self.pos2idx_t(self.particle_field[i].p)
             assert(0 <= particle_loc < self.num_cells)
             temp[particle_loc] -= 1
@@ -195,9 +193,6 @@ class ParticleSystem:
                 assert(0 <= particle_loc < self.num_cells)
                 assert(particle_loc == i)
 
-    def sort_checker(self):
-        pass
-
     @ti.func
     def get_grid_idx(self, pos):
         return (pos / self.grid_cell_sz).cast(int)
@@ -211,13 +206,13 @@ class ParticleSystem:
         return self.get_flattened_idx(self.get_grid_idx(pos))
 
     def get_grid_idx_t(self, pos):
-        return (pos / self.grid_cell_sz).cast(int)
+        return self.ivec(pos / self.grid_cell_sz)
     
     def get_flattened_idx_t(self, idx) -> int:
         return idx.dot(self.grid_szs)
 
     def pos2idx_t(self, pos):
-        return self.get_flattened_idx(self.get_grid_idx(pos))
+        return self.get_flattened_idx_t(self.get_grid_idx_t(pos))
     
     @ti.kernel
     def _add_obj(
