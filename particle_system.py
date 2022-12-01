@@ -177,8 +177,8 @@ class ParticleSystem:
             print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
         # self.sort_pre_checker()
-        # self.prefix_sum_executor.run(self.cell_particle_counts)
-        self.prefix_sum()
+        self.prefix_sum_executor.run(self.cell_particle_counts)
+        # self.prefix_sum()
         self.counting_sort_fin()
         # self.sort_fin_checker()
 

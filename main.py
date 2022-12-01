@@ -4,7 +4,7 @@ import yaml
 import taichi as ti
 
 ti.init(
-    arch=ti.gpu,debug=True
+    arch=ti.gpu
 )
 
 with open("pbf_config.yml", "r") as f:
@@ -51,7 +51,7 @@ while window.running:
         canvas.set_background_color((0,0,0))
         canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, color=particle_grid.particle_field.color)
     else:
-        ext_acc = ti.math.vec3(0,0,-9.8) + ad * ti.math.vec3(5,0,0) + ws * ti.math.vec3(0,5,0)
+        ext_acc = (ti.math.vec3(0,0,-9.8) + ad * ti.math.vec3(-5,5,0) + ws * ti.math.vec3(-5,-5,0)).normalized() * 9.8
         if animating:
             solver.step_solver(ext_acc)
         camera.track_user_inputs(window, movement_speed=0.02, hold_key=ti.ui.LMB)
