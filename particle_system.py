@@ -172,19 +172,51 @@ class ParticleSystem:
         if not hasattr(self, "solver_particles"):
             print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
+        self.sort_pre_checker()
         self.prefix_sum_executor.run(self.cell_particle_counts)
         self.counting_sort_fin()
+        self.sort_fin_checker()
+
+    
+    def sort_pre_checker(self):
+        temp = self.cell_particle_counts.to_numpy()
+        for i in range(self.particle_count):
+            particle_loc = self.pos2idx_t(self.particle_field[i].p)
+            assert(0 <= particle_loc < self.num_cells)
+            temp[particle_loc] -= 1
+        assert((temp == 0).all())
+    
+    def sort_fin_checker(self):
+        for i in range(self.num_cells):
+            list_head = self.cell_particle_counts[i]
+            list_tail = self.cell_particle_counts[i + 1]
+            for j in range(list_head, list_tail):
+                particle_loc = self.pos2idx_t(self.particle_field[j].p)
+                assert(0 <= particle_loc < self.num_cells)
+                assert(particle_loc == i)
+
+    def sort_checker(self):
+        pass
 
     @ti.func
     def get_grid_idx(self, pos):
         return (pos / self.grid_cell_sz).cast(int)
     
     @ti.func
-    def get_flattened_idx(self, idx):
+    def get_flattened_idx(self, idx) -> int:
         return idx.dot(self.grid_szs)
     
     @ti.func
     def pos2idx(self, pos):
+        return self.get_flattened_idx(self.get_grid_idx(pos))
+
+    def get_grid_idx_t(self, pos):
+        return (pos / self.grid_cell_sz).cast(int)
+    
+    def get_flattened_idx_t(self, idx) -> int:
+        return idx.dot(self.grid_szs)
+
+    def pos2idx_t(self, pos):
         return self.get_flattened_idx(self.get_grid_idx(pos))
     
     @ti.kernel
