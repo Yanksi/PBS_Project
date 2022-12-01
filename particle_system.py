@@ -166,14 +166,21 @@ class ParticleSystem:
             if self.solver_particle_registered:
                 self.solver_particles[p] = self.solver_particles_alt[p]
 
+    @ti.kernel
+    def prefix_sum(self):
+        ti.loop_config(serialize=True)
+        for c in range(self.num_cells):
+            self.cell_particle_counts[c + 1] += self.cell_particle_counts[c]
+
     def counting_sort(self):
         if not hasattr(self, "solver_particles"):
             print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
-        self.sort_pre_checker()
-        self.prefix_sum_executor.run(self.cell_particle_counts)
+        # self.sort_pre_checker()
+        # self.prefix_sum_executor.run(self.cell_particle_counts)
+        self.prefix_sum()
         self.counting_sort_fin()
-        self.sort_fin_checker()
+        # self.sort_fin_checker()
 
     
     def sort_pre_checker(self):
