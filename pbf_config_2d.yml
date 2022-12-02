@@ -1,6 +1,6 @@
-dims: 3
-domain_sz: [50,50,50] # optional
-particle_radius: 0.25 # optional, support radius will be 4 times this value
+dims: 2
+domain_sz: [1,1] # optional
+particle_radius: 0.01 # optional, support radius will be 4 times this value
 # padding: 0.4 # optional, default to support radius
 dt: 0.05
 materials:
@@ -14,8 +14,8 @@ objects:
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
         # start: [3, 3, 3]
-        size: [35, 40, 40]
-        center: [25, 25, 25]
+        size: [0.6, 0.6]
+        center: [0.5, 0.5]
         # obj parameters:
         # TODO: not yet implmented
         # shape: ellip
@@ -35,4 +35,5 @@ solver:
     # -Confinement / XSPH Viscosity-
     xsph_c: 0.01 # optional
     vorti_epsilon: 0.01 # optional
-    solver_iteration: 10 # optional
+    solver_iteration: 20 # optional
+

@@ -233,7 +233,7 @@ class ParticleSystem:
         # print(particle_pos.shape)
         for i in range(idx_base, idx_base + particle_num):
             self.particle_field[i].p = self.vec([particle_pos[i - idx_base, j] for j in range(self.dim)])
-            self.particle_field[i].color = self.vec([particle_colors[i - idx_base, j] for j in range(self.dim)])
+            self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in range(3)])
             self.particle_field[i].material = material_arr[i - idx_base]
 
     def generate_particles_for_cube(self, lower_corner, size, material):

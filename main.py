@@ -8,7 +8,7 @@ ti.init(
     arch=ti.gpu
 )
 
-with open("pbf_config_large.yml", "r") as f:
+with open("pbf_config_2d.yml", "r") as f:
     try:
         config = yaml.safe_load(f)
     except yaml.YAMLError as exc:
@@ -21,13 +21,14 @@ solver = PBF_Solver(particle_grid, config)
 window = ti.ui.Window(f'PBF3D ({particle_grid.total_particle_num} particles)', res = (1024, 1024))
 canvas = window.get_canvas()
 scene = ti.ui.Scene()
-camera = ti.ui.Camera()
 
-camera.position(*(particle_grid.domain_sz * 2))
-camera.up(0.0, 1.0, 0.0)
-camera.lookat(0.0, 0.0, 0.0)
-camera.fov(70)
-scene.set_camera(camera)
+if particle_grid.dim == 3:
+    camera = ti.ui.Camera()
+    camera.position(*(particle_grid.domain_sz * 2))
+    camera.up(0.0, 1.0, 0.0)
+    camera.lookat(0.0, 0.0, 0.0)
+    camera.fov(70)
+    scene.set_camera(camera)
 
 frame_count = 0
 gui = window.get_gui()
@@ -49,8 +50,9 @@ while window.running:
         ext_acc = ti.math.vec2(0, -9.8) + ad * ti.math.vec2(5, 0)
         if animating:
             solver.step_solver(ext_acc)
-        canvas.set_background_color((0,0,0))
-        canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, color=particle_grid.particle_field.color)
+        # canvas.set_background_color((0,0,0))
+        # canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, color=particle_grid.particle_field.color)
+        canvas.circles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=particle_grid.particle_field.color)
     else:
         ext_acc = (ti.math.vec3(0,-9.8,0) + ad * ti.math.vec3(5,0,-5) + ws * ti.math.vec3(-5,0,-5)).normalized() * 9.8
         if animating:
