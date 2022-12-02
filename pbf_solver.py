@@ -63,18 +63,26 @@ class PBF_Solver:
 
     @ti.func
     def poly6(self, d2: float) -> float:
-        return self.poly6_coeff * ti.pow(self.h ** 2 - d2, 3)
+        result = 0.0
+        if d2 > 0.0:
+            result = self.poly6_coeff * ti.pow(self.h ** 2 - d2, 3)
+        return result
     
     @ti.func
     def d_spiky(self, d, dn):
-        return self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d if dn>0 else 0
+        result = self.vec(0.0)
+        if dn > 0.0:
+            result = self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d
+        return result
 
     @ti.func
     def dd_spiky(self, dist: vec3, d2, d) -> mat3:
-        eye3 = ti.Matrix.diag(3, 1)
-        t1 = self.d_spiky_coeff * ti.pow(self.h - d, 2) / d
-        t2 = self.d_spiky_coeff * (self.h**2 - d2) / (d2 * d)
-        result = t1 * eye3 - t2 * dist.outer_product(dist)
+        result = mat3(0.0)
+        if d2 > 0.0:
+            eye3 = ti.Matrix.diag(3, 1)
+            t1 = self.d_spiky_coeff * ti.pow(self.h - d, 2) / d
+            t2 = self.d_spiky_coeff * (self.h**2 - d2) / (d2 * d)
+            result = t1 * eye3 - t2 * dist.outer_product(dist)
         return result
     
     @ti.func
@@ -184,12 +192,12 @@ class PBF_Solver:
                 self.particle_grid.for_all_neighbors(p, self.finalize_task, [xsph_sum, omega_sum, d_omega_p])
                 xsph_sum *= self.xsph_c
                 self.solver_particles[p].v += xsph_sum
-                # if self.dim == 3:
-                #     omega = omega_sum.normalized()
-                #     n = d_omega_p @ omega
-                #     big_n = n.normalized()
-                #     if not omega_sum.norm() == 0.0:
-                #         self.solver_particles[p].vort = self.vorti_epsilon * big_n.cross(omega_sum)
+                if self.dim == 3:
+                    omega = omega_sum.normalized()
+                    n = d_omega_p @ omega
+                    big_n = n.normalized()
+                    if not omega_sum.norm() == 0.0:
+                        self.solver_particles[p].vort = self.vorti_epsilon * big_n.cross(omega_sum)
     
     def step_solver(self, external_acc):
         # print("solver invoked")

@@ -56,7 +56,7 @@ class ParticleSystem:
             self.materials[i] = Material(
                 is_liquid,
                 m.get("is_dynamic", 1) if not is_liquid else 1,
-                particle_volumn * m["density"],
+                particle_volumn * m["density"] * (liquid_volumn_k if is_liquid else 1),
                 1 / m["density"],
                 ti.math.vec3(m["color"])
             )
