@@ -1,9 +1,8 @@
 dims: 3
 domain_sz: [20,20,20] # optional
 particle_radius: 0.25 # optional, support radius will be 4 times this value
-padding: 0.4 # optional, default to support radius
+# padding: 0.4 # optional, default to support radius
 dt: 0.05
-solver_substep_iteration: 20
 materials:
     -
         is_liquid: 1
@@ -14,8 +13,9 @@ objects:
         material: 0
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
-        start: [1, 1, 1]
-        size: [10, 10, 15]
+        # start: [3, 3, 3]
+        size: [15, 10, 15]
+        center: [10, 10, 10]
         # obj parameters:
         # TODO: not yet implmented
         # shape: ellip

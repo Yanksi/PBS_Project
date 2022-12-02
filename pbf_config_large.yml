@@ -1,34 +1,27 @@
 dims: 3
-domain_sz: [1.0,1.0,1.0] # optional
-particle_radius: 0.01 # optional, support radius will be 4 times this value
-padding: 0.04 # optional, default to support radius
+domain_sz: [50,50,50] # optional
+particle_radius: 0.25 # optional, support radius will be 4 times this value
+# padding: 0.4 # optional, default to support radius
 dt: 0.05
 materials:
     -
         is_liquid: 1
-        density: 1000.0
-        color: [0.1372549 , 0.5372549 , 0.85490196]
-    -
-        is_liquid: 0
-        density: 2000.0
-        is_dynamic: 1
+        density: 1
         color: [0.26666667, 1.        , 0.82352941]
 objects:
     -
         material: 0
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
-        # center: [0.5, 0.5, 0.5] # can use either center or start to define the location
-        start: [0.04, 0.04, 0.04] # if both are specified, will use start
-        size: [0.3, 0.3, 0.3]
-
-        # shape: ellip
-        # center: [0.5, 0.5, 0.5] # can use either center or start to define the location
-        # start: [0.0, 0.0, 0.0] # if both are specified, will use start
-        # size: [1.0, 1.0, 1.0]
+        # start: [3, 3, 3]
+        size: [35, 40, 40]
+        center: [25, 25, 25]
         # obj parameters:
         # TODO: not yet implmented
-
+        # shape: ellip
+        # center: [0.5, 0.5, 0.5] # can use either center or start to define the location
+        # # start: [0.0, 0.0, 0.0] # if both are specified, will use start
+        # size: [0.3, 0.2, 0.5]
 solver:
     type: PBF
     # PBF parameters
@@ -42,6 +35,4 @@ solver:
     # -Confinement / XSPH Viscosity-
     xsph_c: 0.01 # optional
     vorti_epsilon: 0.01 # optional
-    
     solver_iteration: 20 # optional
-
