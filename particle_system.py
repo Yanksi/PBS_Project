@@ -9,6 +9,7 @@ class Material:
     is_liquid: int # 1 if is liquid, 0 if not
     is_dynamic: int # 1 if is dynamic, 0 if not
     mass_per_particle: float
+    mass_per_particle_inv: float
     rest_density_inv: float
     color: vec3
 
@@ -40,6 +41,7 @@ class ParticleSystem:
             p: self.vec # position
             color: vec3
             material: int
+            particle_id: int
 
         self.domain_sz = np.array(configs.get("domain_sz", [domain_axis_sz] * self.dim))
         assert(len(self.domain_sz) == self.dim, "Given domain size and dimension does not match!")
@@ -51,14 +53,16 @@ class ParticleSystem:
 
         self.materials = Material.field(shape=(len(configs["materials"])))
         particle_volumn = self.particle_diameter ** self.dim
-        self.min_mass = particle_volumn * min([x['density'] 
-                            for x in configs['materials'] if x['is_liquid']]) * liquid_volumn_k
+        self.min_mass = float('inf')
         for i, m in enumerate(configs["materials"]):
             is_liquid = m["is_liquid"]
+            particle_mass = particle_volumn * m["density"] * (liquid_volumn_k if is_liquid else 1)
+            self.min_mass = min(self.min_mass, particle_mass)
             self.materials[i] = Material(
                 is_liquid,
                 m.get("is_dynamic", 1) if not is_liquid else 1,
-                particle_volumn * m["density"] * (liquid_volumn_k if is_liquid else 1),
+                particle_mass,
+                1 / particle_mass,
                 1 / m["density"],
                 ti.math.vec3(m["color"])
             )
@@ -125,7 +129,14 @@ class ParticleSystem:
             self.colors_list.append(pc)
         
         self.total_particle_num = reduce(lambda x, y: x+y, (a.shape[0] for a in self.materials_list))
+        self.shift = int(np.ceil(np.log2(self.total_particle_num)))
+        self.mask = (1 << self.shift) - 1
         self.particle_field = Particle.field(shape=(self.total_particle_num,))
+        # for storing particle_id -> particle_field_idx relationship
+        # after regional sort, each object region in particle_idx will be sorted for access with less cache miss
+        self.particle_idx = ti.field(dtype=int, shape=(self.total_particle_num,))
+        self.obj_ids = ti.field(dtype=int, shape=(self.total_particle_num,))
+        # variables for counting sort
         self.particle_field_alt = Particle.field(shape=(self.total_particle_num,))
         self.particle_grid_id = ti.field(dtype=int, shape=(self.total_particle_num,))
         self.cell_particle_counts = ti.field(dtype=int, shape=(self.num_cells + 1,))
@@ -133,10 +144,31 @@ class ParticleSystem:
         self.solver_particle_registered = False
 
         idx_base = 0
+        self.liquid_regions = []
+        self.solid_regions = []
         for op, om, oc in zip(self.particle_positions_list, self.materials_list, self.colors_list):
             self._add_obj(idx_base, len(op), op, om, oc)
+            if self.materials[om[0]].is_liquid:
+                self.liquid_regions.append((idx_base, idx_base + len(op)))
+            else:
+                self.solid_regions.append((idx_base, idx_base + len(op)))
             idx_base += len(op)
-        
+    
+    @ti.kernel
+    def regional_sort_pre(self):
+        for p in self.particle_idx:
+            self.particle_idx[p] |= (self.obj_ids[p] << self.shift)
+    
+    @ti.kernel
+    def regional_sort_post(self):
+        for p in self.particle_idx:
+            self.particle_idx[p] &= self.mask
+
+    def regional_sort(self):
+        self.regional_sort_pre()
+        ti.algorithms.parallel_sort(self.particle_idx)
+        self.regional_sort_post()
+
     def register_solver_particles(self, solver_particle_type):
         if solver_particle_type is not None:
             self.solver_particles = solver_particle_type.field(shape=(self.total_particle_num,))
@@ -156,10 +188,11 @@ class ParticleSystem:
             self.cell_particle_counts[id] += 1
     
     @ti.kernel
-    def counting_sort_fin(self):
+    def counting_sort_post(self):
         for p in self.particle_field:
             sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1) - 1
             self.particle_field_alt[sorted_pos] = self.particle_field[p]
+            self.particle_idx[self.particle_field[p].particle_id] = sorted_pos
             if self.solver_particle_registered:
                 self.solver_particles_alt[sorted_pos] = self.solver_particles[p]
 
@@ -178,29 +211,10 @@ class ParticleSystem:
         if not hasattr(self, "solver_particles"):
             print("Particle grid cannot perform any operation untill solver particles get registered")
         self.counting_sort_pre()
-        # self.sort_pre_checker()
         self.prefix_sum_executor.run(self.cell_particle_counts)
         # self.prefix_sum()
-        self.counting_sort_fin()
-        # self.sort_fin_checker()
-
-    
-    def sort_pre_checker(self):
-        temp = self.cell_particle_counts.to_numpy()
-        for i in range(self.total_particle_num):
-            particle_loc = self.pos2idx_t(self.particle_field[i].p)
-            assert(0 <= particle_loc < self.num_cells)
-            temp[particle_loc] -= 1
-        assert((temp == 0).all())
-    
-    def sort_fin_checker(self):
-        for i in range(self.num_cells):
-            list_head = self.cell_particle_counts[i]
-            list_tail = self.cell_particle_counts[i + 1]
-            for j in range(list_head, list_tail):
-                particle_loc = self.pos2idx_t(self.particle_field[j].p)
-                assert(0 <= particle_loc < self.num_cells)
-                assert(particle_loc == i)
+        self.counting_sort_post()
+        self.regional_sort()
 
     @ti.func
     def get_grid_idx(self, pos):
@@ -213,15 +227,6 @@ class ParticleSystem:
     @ti.func
     def pos2idx(self, pos):
         return self.get_flattened_idx(self.get_grid_idx(pos))
-
-    def get_grid_idx_t(self, pos):
-        return self.ivec(pos / self.grid_cell_sz)
-    
-    def get_flattened_idx_t(self, idx) -> int:
-        return idx.dot(self.grid_szs)
-
-    def pos2idx_t(self, pos):
-        return self.get_flattened_idx_t(self.get_grid_idx_t(pos))
     
     @ti.kernel
     def _add_obj(
@@ -237,6 +242,8 @@ class ParticleSystem:
             self.particle_field[i].p = self.vec([particle_pos[i - idx_base, j] for j in range(self.dim)])
             self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in range(3)])
             self.particle_field[i].material = material_arr[i - idx_base]
+            self.particle_field[i].particle_id = i
+            self.particle_idx[i] = i
 
     def generate_particles_for_cube(self, lower_corner, size, material):
         slices = tuple(slice(lower_corner[i], lower_corner[i] + size[i], self.particle_diameter) for i in range(self.dim))
