@@ -30,7 +30,7 @@ objects:
         # TODO: not yet implmented
 
 solver:
-    type: PBF
+    type: PBD
     # PBF parameters
     # -S_CORR-
     S_Corr_delta_q: 0.3 # optional, actual value would be this value times support radius, should between 0 and 1, best in [0.1, 0.3]
@@ -44,4 +44,9 @@ solver:
     vorti_epsilon: 0.01 # optional
     
     solver_iteration: 20 # optional
+
+    # PBD parameters
+    stabilization_iteration: 10 # optional
+    sleep_threshold: 0.25 # optional, actual threshold would be this value times support radius
+    constraint_averaging: true
 

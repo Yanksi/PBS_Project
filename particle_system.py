@@ -133,8 +133,8 @@ class ParticleSystem:
         self.mask = (1 << self.shift) - 1
         self.particle_field = Particle.field(shape=(self.total_particle_num,))
         # for storing particle_id -> particle_field_idx relationship
-        # after regional sort, each object region in particle_idx will be sorted for access with less cache miss
-        self.particle_idx = ti.field(dtype=int, shape=(self.total_particle_num,))
+        # after regional sort, each object region in obj_particle_ids will be sorted for access with less cache miss
+        self.obj_particle_ids = ti.field(dtype=int, shape=(self.total_particle_num,))
         self.obj_ids = ti.field(dtype=int, shape=(self.total_particle_num,))
         # variables for counting sort
         self.particle_field_alt = Particle.field(shape=(self.total_particle_num,))
@@ -156,17 +156,17 @@ class ParticleSystem:
     
     @ti.kernel
     def regional_sort_pre(self):
-        for p in self.particle_idx:
-            self.particle_idx[p] |= (self.obj_ids[p] << self.shift)
+        for p in self.obj_particle_ids:
+            self.obj_particle_ids[p] |= (self.obj_ids[p] << self.shift)
     
     @ti.kernel
     def regional_sort_post(self):
-        for p in self.particle_idx:
-            self.particle_idx[p] &= self.mask
+        for p in self.obj_particle_ids:
+            self.obj_particle_ids[p] &= self.mask
 
     def regional_sort(self):
         self.regional_sort_pre()
-        ti.algorithms.parallel_sort(self.particle_idx)
+        ti.algorithms.parallel_sort(self.obj_particle_ids)
         self.regional_sort_post()
 
     def register_solver_particles(self, solver_particle_type):
@@ -192,7 +192,7 @@ class ParticleSystem:
         for p in self.particle_field:
             sorted_pos = ti.atomic_sub(self.cell_particle_counts[self.particle_grid_id[p]], 1) - 1
             self.particle_field_alt[sorted_pos] = self.particle_field[p]
-            self.particle_idx[self.particle_field[p].particle_id] = sorted_pos
+            self.obj_particle_ids[self.particle_field[p].particle_id] = sorted_pos
             if self.solver_particle_registered:
                 self.solver_particles_alt[sorted_pos] = self.solver_particles[p]
 
@@ -262,8 +262,9 @@ class ParticleSystem:
         return (particle_pos + center)[measure], ma[measure], pc[measure]
     
     @ti.func
-    def for_all_neighbors(self, p_i, task: ti.template(), ret: ti.template()):
+    def for_all_neighbors(self, p_i, task: ti.template(), ret: ti.template()) -> int:
         center_cell = self.get_grid_idx(self.particle_field[p_i].p)
+        result = 0
         for offset in ti.grouped(ti.ndrange(*((-1, 2),) * self.dim)):
             nb = center_cell + offset
             if (0 <= nb).all() and (nb < self.grid_num).all():
@@ -275,3 +276,5 @@ class ParticleSystem:
                     d2 = diff.dot(diff)
                     if p_i != p_j and d2 < self.support_radius ** 2:
                         task(p_i, p_j, diff, d2, ret)
+                        result += 1
+        return result
