@@ -51,6 +51,8 @@ class ParticleSystem:
 
         self.materials = Material.field(shape=(len(configs["materials"])))
         particle_volumn = self.particle_diameter ** self.dim
+        self.min_mass = particle_volumn * min([x['density'] 
+                            for x in configs['materials'] if x['is_liquid']]) * liquid_volumn_k
         for i, m in enumerate(configs["materials"]):
             is_liquid = m["is_liquid"]
             self.materials[i] = Material(

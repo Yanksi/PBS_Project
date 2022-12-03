@@ -46,6 +46,7 @@ class PBF_Solver:
         S_Corr_k = config["solver"].get("S_Corr_k", d_S_Corr_k)
         self.S_Corr_n = config["solver"].get("S_Corr_n", d_S_Corr_n)
         self.S_Corr_coeff = - S_Corr_k / poly6_S_Corr ** self.S_Corr_n
+        self.min_mass_inv = 1/self.particle_grid.min_mass
         
         self.dt = config.get("dt", d_dt)
         self.lambda_epsilon = config["solver"].get("lambda_epsilon", d_lambda_epsilon)
@@ -122,28 +123,27 @@ class PBF_Solver:
     @ti.func
     def solve_task_lambda(self, pid, pjd, dist, d2, ret:ti.template()):
         # TODO: consider for case which the mateiral of the given two particles are different
-        mass_pj = self.materials[self.particles[pjd].material].mass_per_particle
         material_pi = self.materials[self.particles[pid].material]
-        # mass_pi = material_pi.mass_per_particle
+        mass_pi = material_pi.mass_per_particle
         dens_pi_inv = material_pi.rest_density_inv
-        ret[0] += mass_pj * self.poly6(d2)
+        ret[0] += mass_pi * self.poly6(d2)
 
         d = ti.sqrt(d2)
         s = self.d_spiky(dist, d) * dens_pi_inv
         ret[1] += s
-        ret[2] += s.dot(s)
+        ret[2] += s.dot(s) * self.min_mass_inv
 
     @ti.func
     def solve_task_delta_p(self, pid, pjd, dist, d2, ret:ti.template()):
         # TODO: consider for case which the mateiral of the given two particles are different
         material_pi = self.materials[self.particles[pid].material]
-        # mass_pi = material_pi.mass_per_particle
+        mass_pi = material_pi.mass_per_particle
         dens_pi_inv = material_pi.rest_density_inv
         scorr = self.S_Corr(d2)
         left = self.solver_particles[pid].l + self.solver_particles[pjd].l + scorr
         d = ti.sqrt(d2)
         right = self.d_spiky(dist, d)
-        ret += left * dens_pi_inv * right
+        ret += left * dens_pi_inv * right/mass_pi
 
     @ti.kernel
     def solve(self):
@@ -156,7 +156,7 @@ class PBF_Solver:
             self.particle_grid.for_all_neighbors(pid, self.solve_task_lambda, ret)
             p_i, d_spiky_i, lower_sum = ret
             constraint = (p_i * dens_pi_inv) - 1.0
-            lower_sum += d_spiky_i.dot(d_spiky_i)
+            lower_sum += d_spiky_i.dot(d_spiky_i) * self.min_mass_inv
             self.solver_particles[pid].l = -1.0 * (constraint / (lower_sum + self.lambda_epsilon))
 
         for pid in self.particles:

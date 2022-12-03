@@ -8,7 +8,7 @@ ti.init(
     arch=ti.gpu
 )
 
-with open("pbf_config_2d.yml", "r") as f:
+with open("pbf_config_2p.yml", "r") as f:
     try:
         config = yaml.safe_load(f)
     except yaml.YAMLError as exc:
@@ -24,7 +24,7 @@ scene = ti.ui.Scene()
 
 if particle_grid.dim == 3:
     camera = ti.ui.Camera()
-    camera.position(*(particle_grid.domain_sz * 2))
+    camera.position(*(particle_grid.domain_sz * 1.5))
     camera.up(0.0, 1.0, 0.0)
     camera.lookat(0.0, 0.0, 0.0)
     camera.fov(70)
