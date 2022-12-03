@@ -1,5 +1,6 @@
 from particle_system import ParticleSystem
 from pbf_solver import PBF_Solver
+from pbd_solver import PBD_Solver
 import yaml
 import taichi as ti
 import numpy as np
@@ -16,7 +17,14 @@ with open("pbf_config_2p.yml", "r") as f:
         exit()
 
 particle_grid = ParticleSystem(config)
-solver = PBF_Solver(particle_grid, config)
+solver_type = config['solver']['type']
+if solver_type == "PBF":
+    solver = PBF_Solver(particle_grid, config)
+elif solver_type == "PBD":
+    solver = PBD_Solver(particle_grid, config)
+else:
+    print("unknown solver type!")
+    exit()
 
 window = ti.ui.Window(f'PBF3D ({particle_grid.total_particle_num} particles)', res = (1024, 1024))
 canvas = window.get_canvas()

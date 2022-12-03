@@ -24,7 +24,7 @@ d_sleep_threshold = 0.25
 d_constraint_avg = True
 
 @ti.data_oriented
-class PBF_Solver:
+class PBD_Solver:
     def __init__(self, particle_grid: ParticleSystem, config):
         self.particle_grid = particle_grid
         self.dim = self.particle_grid.dim
