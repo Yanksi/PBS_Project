@@ -44,6 +44,9 @@ class ParticleSystem:
             color: vec3
             material: int
             particle_id: int
+            obj_id: int
+            SDF: float
+            dSDF: self.vec
 
         self.domain_sz = np.array(configs.get("domain_sz", [domain_axis_sz] * self.dim))
         assert(len(self.domain_sz) == self.dim, "Given domain size and dimension does not match!")
@@ -148,8 +151,12 @@ class ParticleSystem:
         idx_base = 0
         self.liquid_regions = []
         self.solid_regions = []
-        for op, om, oc in zip(self.particle_positions_list, self.materials_list, self.colors_list):
-            self._add_obj(idx_base, len(op), op, om, oc)
+        for oi, (op, om, oc) in enumerate(zip(self.particle_positions_list, self.materials_list, self.colors_list)):
+            # TODO: use real sdf and dsdf here
+            sdf = np.zeros(len(op))
+            dsdf = np.zeros((len(op), 3))
+
+            self._add_obj(idx_base, oi, len(op), op, om, oc, sdf, dsdf)
             if self.materials[om[0]].is_liquid:
                 self.liquid_regions.append((idx_base, idx_base + len(op)))
             else:
@@ -235,17 +242,23 @@ class ParticleSystem:
     def _add_obj(
         self,
         idx_base: int,
+        obj_id,
         particle_num: int,
         particle_pos: ti.types.ndarray(),
         material_arr: ti.types.ndarray(),
-        particle_colors: ti.types.ndarray()
+        particle_colors: ti.types.ndarray(),
+        SDF: ti.types.ndarray(),
+        dSDF: ti.types.ndarray()
         ):
         # print(particle_pos.shape)
         for i in range(idx_base, idx_base + particle_num):
-            self.particle_field[i].p = self.vec([particle_pos[i - idx_base, j] for j in range(self.dim)])
-            self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in range(3)])
+            self.particle_field[i].p = self.vec([particle_pos[i - idx_base, j] for j in ti.static(range(self.dim))])
+            self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in ti.static(range(3))])
             self.particle_field[i].material = material_arr[i - idx_base]
             self.particle_field[i].particle_id = i
+            self.particle_field[i].obj_id = obj_id
+            self.particle_field[i].SDF = SDF[i - idx_base]
+            self.particle_field[i].dSDF = self.vec([dSDF[i - idx_base, j] for j in ti.static(range(self.dim))])
             self.obj_particle_ids[i] = i
 
     def generate_particles_for_cube(self, lower_corner, size, material):

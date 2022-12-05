@@ -44,7 +44,7 @@ class PBD_Solver:
 
             # for liquid
             # for rigid
-            # dSDF: self.vec
+            dSDF: self.vec # runtime dSDF
         
         self.solver_particles = self.particle_grid.register_solver_particles(SolverParticle)
         self.h = self.particle_grid.support_radius
@@ -196,7 +196,7 @@ class PBD_Solver:
         poly = self.poly6(d2)
         ret[0] += poly * v_ij
         dn = ti.sqrt(d2)
-        if self.dim == 3:
+        if ti.static(self.dim == 3):
             ret[1] += v_ij.cross(self.d_spiky(dist, dn))
             ret[2] += self.cross_mat(self.dummy_mat @ v_ij) @ self.dd_spiky(self.dummy_mat @ dist, d2, dn)
 
@@ -210,7 +210,7 @@ class PBD_Solver:
             self.particle_grid.for_all_neighbors(p, self.liquid_finalize_task, [xsph_sum, omega_sum, d_omega_p])
             xsph_sum *= self.xsph_c
             self.solver_particles[p].v += xsph_sum
-            if self.dim == 3:
+            if ti.static(self.dim == 3):
                 omega = omega_sum.normalized()
                 n = d_omega_p @ omega
                 big_n = n.normalized()
