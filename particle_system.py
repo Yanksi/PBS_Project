@@ -153,7 +153,7 @@ class ParticleSystem:
         self.solid_regions = []
         for oi, (op, om, oc) in enumerate(zip(self.particle_positions_list, self.materials_list, self.colors_list)):
             # TODO: use real sdf and dsdf here
-            sdf = np.zeros(len(op))
+            sdf = np.full(len(op), self.particle_radius, float)
             dsdf = np.zeros((len(op), 3))
 
             self._add_obj(idx_base, oi, len(op), op, om, oc, sdf, dsdf)
@@ -242,7 +242,7 @@ class ParticleSystem:
     def _add_obj(
         self,
         idx_base: int,
-        obj_id,
+        obj_id: int,
         particle_num: int,
         particle_pos: ti.types.ndarray(),
         material_arr: ti.types.ndarray(),
