@@ -21,7 +21,7 @@ d_stab_iteration = 10
 
 d_sleep_threshold = 0.25
 
-d_constraint_avg = True
+d_constraint_avg = False
 
 @ti.data_oriented
 class PBD_Solver:
