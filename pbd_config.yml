@@ -40,5 +40,5 @@ solver:
     # PBD parameters
     stabilization_iteration: 10 # optional
     sleep_threshold: 0.25 # optional, actual threshold would be this value times support radius
-    constraint_averaging: true
+    constraint_averaging: false
 

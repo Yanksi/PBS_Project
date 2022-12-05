@@ -175,8 +175,8 @@ class PBD_Solver:
             pid = self.obj_particle_ids[i]
             dp = self.vec(0)
             n_constraints = self.particle_grid.for_all_neighbors(pid, self.solve_task_delta_p, dp)
-            self.particles[pid].p += dp / (n_constraints if self.constraint_ave else 1)
-    
+            # self.particles[pid].p += dp * (3.0 / n_constraints if self.constraint_ave else 1)
+            self.particles[pid].p += dp # constraint averaging is not working well with liquid constraints for some reason
     # @ti.kernel
     def solve_contact_constraints(self):
         # TODO: implement contact constraints solving process here
