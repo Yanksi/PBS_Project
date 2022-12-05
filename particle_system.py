@@ -19,6 +19,8 @@ particle_radius = 0.01
 
 liquid_volumn_k = 1 / 0.8
 
+obj_particle_sort = False
+
 @ti.data_oriented
 class ParticleSystem:
     def __init__(self, configs:dict):
@@ -214,7 +216,8 @@ class ParticleSystem:
         self.prefix_sum_executor.run(self.cell_particle_counts)
         # self.prefix_sum()
         self.counting_sort_post()
-        self.regional_sort()
+        if obj_particle_sort:
+            self.regional_sort()
 
     @ti.func
     def get_grid_idx(self, pos):
@@ -243,7 +246,7 @@ class ParticleSystem:
             self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in range(3)])
             self.particle_field[i].material = material_arr[i - idx_base]
             self.particle_field[i].particle_id = i
-            self.particle_idx[i] = i
+            self.obj_particle_ids[i] = i
 
     def generate_particles_for_cube(self, lower_corner, size, material):
         slices = tuple(slice(lower_corner[i], lower_corner[i] + size[i], self.particle_diameter) for i in range(self.dim))

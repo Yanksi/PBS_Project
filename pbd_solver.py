@@ -238,5 +238,6 @@ class PBD_Solver:
             for start, end in self.liquid_regions:
                 self.solve_liquid_constraints(start, end)
         self.finalize_step()
-        self.liquid_finalize_step()
+        for start, end in self.liquid_regions:
+            self.liquid_finalize_step(start, end)
         # print("solver finalized")
