@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, mat3
+from taichi.math import vec3, mat3, mat2
 from particle_system import ParticleSystem
 import math
 import numpy as np
@@ -30,6 +30,7 @@ class PBD_Solver:
         self.dim = self.particle_grid.dim
         self.world_sz = self.particle_grid.domain_sz
         self.vec = self.particle_grid.vec
+        self.mat = self.particle_grid.mat
         self.particles = self.particle_grid.particle_field
         self.materials = self.particle_grid.materials
         self.solid_regions = self.particle_grid.solid_regions
@@ -181,7 +182,9 @@ class PBD_Solver:
     
     @ti.func
     def solve_contact_task(self, pid, pjd, dist, d2, ret:ti.template()):
-        if self.particles[pid].obj_id != self.particles[pjd].obj_id:
+        material_i = self.materials[self.particles[pid].material]
+        material_j = self.materials[self.particles[pjd].material]
+        if (material_i.is_liquid == 0 or material_j.is_liquid == 0) and self.particles[pid].obj_id != self.particles[pjd].obj_id:
             if dist.norm() < self.particle_grid.particle_diameter:
                 i_sqnorm = self.solver_particles[pid].dSDF.dot(self.solver_particles[pid].dSDF)
                 j_sqnorm = self.solver_particles[pjd].dSDF.dot(self.solver_particles[pjd].dSDF)
@@ -194,8 +197,8 @@ class PBD_Solver:
                     if j_sqnorm < i_sqnorm or (j_sqnorm == i_sqnorm and pjd < pid):
                         n = -self.solver_particles[pjd].dSDF
 
-                wi = self.materials[self.particles[pid].material].mass_per_particle_inv
-                wj = self.materials[self.particles[pjd].material].mass_per_particle_inv
+                wi = material_i.mass_per_particle_inv
+                wj = material_j.mass_per_particle_inv
                 d = ti.min(self.particles[pid].SDF, self.particles[pjd].SDF)
                 ret -= wi / (wi + wj) * (d * n)
 
@@ -206,11 +209,21 @@ class PBD_Solver:
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, dp)
             self.particles[i].p += dp
 
-    # @ti.kernel
+    @ti.kernel
     def solve_rigid_constraints(self, start: int, end: int):
         # start and end here indicates the start and end idx in self.obj_particle_ids
-        # TODO: implement shape matching constraint solver here
-        pass
+        mA = self.mat(0)
+        # compute run-time center of mass
+        c = self.vec(0)
+        for i in range(start, end):
+            c += self.particles[i].p
+        c /= (end - start)
+        for i in range(start, end):
+            mA += (self.particles[i].p - c).outer_product(self.particles[i].r)
+        Q,_ = ti._funcs.polar_decompose(mA)
+        for i in range(start, end):
+            dp = (Q @ self.particles[i].r + c) - self.particles[i].p
+            self.particles[i].p += dp
 
     
     @ti.func
