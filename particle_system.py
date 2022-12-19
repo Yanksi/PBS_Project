@@ -145,7 +145,7 @@ class ParticleSystem:
                 sdf = osdf
                 dsdf = odsdf
             else:
-                sdf = np.full(len(op), self.particle_diameter, float)
+                sdf = np.full(len(op), np.inf, float)
                 dsdf = np.zeros((len(op), self.dim))
                 r = np.zeros((len(op), self.dim))
 
