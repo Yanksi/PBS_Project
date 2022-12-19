@@ -259,6 +259,11 @@ class ParticleSystem:
     def generate_particles_for_cube(self, lower_corner, size, material):
         slices = tuple(slice(lower_corner[i] + self.particle_radius, lower_corner[i] + size[i] - self.particle_radius, self.particle_diameter) for i in range(self.dim))
         particle_positions = np.mgrid[slices].reshape(self.dim, -1).transpose()
+        center = np.median(particle_positions, axis=0)
+        particle_positions = particle_positions - center + lower_corner + size / 2
+        lower_corner = particle_positions.min(axis=0) - self.particle_radius
+        size = particle_positions.max(axis=0) - lower_corner + self.particle_radius
+
         num_new_particles = particle_positions.shape[0]
         material_arr = np.full(num_new_particles, material, dtype=int)
         colors = np.tile(self.materials[material].color, [num_new_particles, 1])
@@ -270,8 +275,10 @@ class ParticleSystem:
         sdf = dist_to_bounds[np.arange(len(dist_idx)), dist_idx]
 
         min_dists = dist_to_bounds[np.arange(len(dist_idx)), dist_idx]
-        temp = (dist_to_bounds == min_dists[:,None]).astype(np.int32)
+        temp = (dist_to_bounds == min_dists[:,None]).astype(np.float64)
         dsdf = temp[:,3:] - temp[:,:3]
+
+        dsdf /= np.linalg.norm(dsdf, axis=1, keepdims=True)
 
         # dsdf = np.zeros((len(dist_idx), self.dim))
         # dsdf[np.arange(len(dist_idx)),dist_idx % 3] = 1

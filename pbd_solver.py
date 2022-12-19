@@ -191,13 +191,13 @@ class PBD_Solver:
             if dist.norm() < self.particle_grid.particle_diameter:
                 sdfi = self.particles[pid].SDF
                 sdfj = self.particles[pjd].SDF
-                d = 0.0
+                d = self.particle_grid.particle_diameter - dist.norm()
                 n = self.vec(0.0)
                 if sdfi < sdfj or (sdfi == sdfj and pid < pjd):
-                    d = sdfi
+                    # d = sdfi
                     n = self.solver_particles[pid].dSDF
                 else:
-                    d = sdfj
+                    # d = sdfj
                     n = -self.solver_particles[pjd].dSDF
                 # i_sqnorm = self.solver_particles[pid].dSDF.dot(self.solver_particles[pid].dSDF)
                 # j_sqnorm = self.solver_particles[pjd].dSDF.dot(self.solver_particles[pjd].dSDF)
@@ -223,10 +223,11 @@ class PBD_Solver:
             n = 0
             ret = [dp, n]
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, ret)
+            dp, n = ret
             if n > 0:
-                print("aaa")
-                self.particles[i].p += dp / n
-                self.solver_particles[i].p0 += dp / n
+                dp /= (n / 1.5)
+                self.particles[i].p += dp
+                self.solver_particles[i].p0 += dp
 
     @ti.kernel
     def solve_rigid_constraints(self, start: int, end: int):
@@ -267,7 +268,9 @@ class PBD_Solver:
             xsph_sum = self.vec(0)
             omega_sum = vec3(0)
             d_omega_p = mat3(0)
-            self.particle_grid.for_all_neighbors(p, self.liquid_finalize_task, [xsph_sum, omega_sum, d_omega_p])
+            ret = [xsph_sum, omega_sum, d_omega_p]
+            self.particle_grid.for_all_neighbors(p, self.liquid_finalize_task, ret)
+            xsph_sum, omega_sum, d_omega_p = ret
             xsph_sum *= self.xsph_c
             self.solver_particles[p].v += xsph_sum
             if ti.static(self.dim == 3):

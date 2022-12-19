@@ -9,7 +9,7 @@ ti.init(
     arch=ti.gpu
 )
 
-with open("pbd_config_fs.yml", "r") as f:
+with open("pbd_config_2s.yml", "r") as f:
     try:
         config = yaml.safe_load(f)
     except yaml.YAMLError as exc:
@@ -52,7 +52,7 @@ while window.running:
     if window.is_pressed(ti.ui.UP): ws = 1
     elif window.is_pressed(ti.ui.DOWN): ws = -1
 
-    if window.is_pressed(ti.ui.SPACE): animating = True
+    if window.is_pressed(ti.ui.SPACE): animating = not animating
 
     if particle_grid.dim == 2:
         ext_acc = ti.math.vec2(0, -9.8) + ad * ti.math.vec2(5, 0)
@@ -69,8 +69,8 @@ while window.running:
         scene.set_camera(camera)
         scene.ambient_light((0.5, 0.5, 0.5))
         scene.point_light(pos=particle_grid.domain_sz * np.array((0.5, 1, 0.5)), color=(1, 1, 1))
-        scene.particles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=particle_grid.particle_field.color)
-        # scene.particles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=solver.solver_particles.dSDF)
+        # scene.particles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=particle_grid.particle_field.color)
+        scene.particles(particle_grid.particle_field.p, radius=particle_grid.particle_radius, per_vertex_color=solver.solver_particles.dSDF)
 
 
         # scene.lines(box_anchors, indices=box_lines_indices, color = (0.99, 0.68, 0.28), width = 1.0)

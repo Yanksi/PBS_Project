@@ -10,7 +10,7 @@ materials:
         color: [0.26666667, 1.        , 0.82352941]
     -
         is_liquid: 0
-        density: 0.01
+        density: 0.2
         color: [0.82352941, 1.        , 0.26666667]
 objects:
     -
