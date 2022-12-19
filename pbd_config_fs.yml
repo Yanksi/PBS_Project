@@ -13,13 +13,13 @@ materials:
         density: 0.5
         color: [0.82352941, 1.        , 0.26666667]
 objects:
-    -
-        material: 0
-        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
-        # cube parameters:
-        # start: [3, 3, 3]
-        size: [15, 10, 15]
-        center: [10, 10, 10]
+    # -
+    #     material: 0
+    #     shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
+    #     # cube parameters:
+    #     # start: [3, 3, 3]
+    #     size: [15, 10, 15]
+    #     center: [10, 10, 10]
         # obj parameters:
         # TODO: not yet implmented
         # shape: ellip
