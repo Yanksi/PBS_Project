@@ -224,6 +224,7 @@ class PBD_Solver:
             ret = [dp, n]
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, ret)
             if n > 0:
+                print("aaa")
                 self.particles[i].p += dp / n
                 self.solver_particles[i].p0 += dp / n
 
