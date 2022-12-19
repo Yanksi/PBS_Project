@@ -23,6 +23,8 @@ d_sleep_threshold = 0.25
 
 d_constraint_avg = False
 
+rigid_dist_k = 1.2
+
 @ti.data_oriented
 class PBD_Solver:
     def __init__(self, particle_grid: ParticleSystem, config):
@@ -130,6 +132,7 @@ class PBD_Solver:
                     # TODO Implement mass scaling here
         self.__setattr__("advect", _inner)
         _inner(external_acc)
+
     
     @ti.func
     def solve_task_lambda(self, pid, pjd, dist, d2, ret:ti.template()):
@@ -137,7 +140,7 @@ class PBD_Solver:
         material_pi = self.materials[self.particles[pid].material]
         mass_pi = material_pi.mass_per_particle
         dens_pi_inv = material_pi.rest_density_inv
-        ret[0] += mass_pi * self.poly6(d2)
+        ret[0] += mass_pi * self.poly6(d2) * (rigid_dist_k if self.materials[self.particles[pjd].material].is_liquid == 0 else 1)
 
         d = ti.sqrt(d2)
         s = self.d_spiky(dist, d) * dens_pi_inv
@@ -186,20 +189,30 @@ class PBD_Solver:
         material_j = self.materials[self.particles[pjd].material]
         if (material_i.is_liquid == 0 or material_j.is_liquid == 0) and self.particles[pid].obj_id != self.particles[pjd].obj_id:
             if dist.norm() < self.particle_grid.particle_diameter:
-                i_sqnorm = self.solver_particles[pid].dSDF.dot(self.solver_particles[pid].dSDF)
-                j_sqnorm = self.solver_particles[pjd].dSDF.dot(self.solver_particles[pjd].dSDF)
-
-                n = dist
-                if i_sqnorm > 0:
+                sdfi = self.particles[pid].SDF
+                sdfj = self.particles[pjd].SDF
+                d = 0.0
+                n = self.vec(0.0)
+                if sdfi < sdfj or (sdfi == sdfj and pid < pjd):
+                    d = sdfi
                     n = self.solver_particles[pid].dSDF
+                else:
+                    d = sdfj
+                    n = -self.solver_particles[pjd].dSDF
+                # i_sqnorm = self.solver_particles[pid].dSDF.dot(self.solver_particles[pid].dSDF)
+                # j_sqnorm = self.solver_particles[pjd].dSDF.dot(self.solver_particles[pjd].dSDF)
+
+                # n = dist
+                # if i_sqnorm > 0:
+                #     n = self.solver_particles[pid].dSDF
                 
-                if j_sqnorm > 0:
-                    if j_sqnorm < i_sqnorm or (j_sqnorm == i_sqnorm and pjd < pid):
-                        n = -self.solver_particles[pjd].dSDF
+                # if j_sqnorm > 0:
+                #     if j_sqnorm < i_sqnorm or (j_sqnorm == i_sqnorm and pjd < pid):
+                #         n = -self.solver_particles[pjd].dSDF
+                # d = ti.min(self.particles[pid].SDF, self.particles[pjd].SDF)
 
                 wi = material_i.mass_per_particle_inv
                 wj = material_j.mass_per_particle_inv
-                d = ti.min(self.particles[pid].SDF, self.particles[pjd].SDF)
                 ret -= wi / (wi + wj) * (d * n)
 
     @ti.kernel

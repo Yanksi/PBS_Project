@@ -1,8 +1,8 @@
 dims: 3
 domain_sz: [20,20,20] # optional
-particle_radius: 0.25 # optional, support radius will be 4 times this value
+particle_radius: 0.2 # optional, support radius will be 4 times this value
 # padding: 0.4 # optional, default to support radius
-dt: 0.05
+dt: 0.01
 materials:
     -
         is_liquid: 0
@@ -18,7 +18,7 @@ objects:
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
         # start: [3, 3, 3]
-        size: [2, 2, 2]
+        size: [5, 5, 5]
         center: [5, 10, 5]
         # obj parameters:
         # TODO: not yet implmented
@@ -29,7 +29,7 @@ objects:
     -
         material: 1
         shape: cube
-        size: [2, 2, 2]
+        size: [5, 5, 5]
         center: [10, 18, 10]
 solver:
     type: PBD
@@ -45,4 +45,5 @@ solver:
     xsph_c: 0.01 # optional
     vorti_epsilon: 0.01 # optional
     solver_iteration: 20 # optional
+    stabilization_iteration: 20
 
