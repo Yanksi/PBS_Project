@@ -270,7 +270,7 @@ class ParticleSystem:
         sdf = dist_to_bounds[np.arange(len(dist_idx)), dist_idx]
         dsdf = np.zeros((len(dist_idx), self.dim))
         dsdf[np.arange(len(dist_idx)),dist_idx % 3] = 1
-        dsdf[dist_idx < 3] *= -1
+        dsdf[dist_idx >= 3] *= -1
         return particle_positions, material_arr, colors, sdf, dsdf
     
     def generate_particles_for_ellip(self, lower_corner, size, material):
