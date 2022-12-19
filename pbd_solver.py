@@ -224,6 +224,7 @@ class PBD_Solver:
         for i in range(start, end):
             dp = (Q @ self.particles[i].r + c) - self.particles[i].p
             self.particles[i].p += dp
+            self.solver_particles[i].dSDF = Q @ self.particles[i].dSDF
 
     
     @ti.func
