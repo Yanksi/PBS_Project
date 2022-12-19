@@ -355,15 +355,39 @@ def shape_matching():
     center2 = ti.Vector([0.0, 0.0, 0.0])
     centerb1 = ti.Vector([10.,10.,15.])
     centerb2 = ti.Vector([5.,5.,10.])
+
     for i in range(nums1):
         center1 += particles.p[num_liquid+i]/nums1
     for i in range(nums2):
         center2 += particles.p[num_liquid+nums1+i]/nums2
 
+    H = ti.math.mat3([[0,0,0],[0,0,0],[0,0,0]])
+    for i in range(num_solid):
+        a1 = ball[i][0]-centerb1[0]
+        a2 = ball[i][1]-centerb1[1]
+        a3 = ball[i][2]-centerb1[2]
+        b1 = particles.p[num_liquid+i].x - center1[0]
+        b2 = particles.p[num_liquid+i].y - center1[1]
+        b3 = particles.p[num_liquid+i].z - center1[2]
+        H += ti.math.mat3([[a1*b1,a1*b2,a1*b3],[a2*b1,a2*b2,a2*b3],[a3*b1,a3*b2,a3*b3]])
+    U,S,V = ti.svd(H)
+    R = V@U.transpose()
     for i in range(nums1):
-        particles.p[num_liquid+i] = center1 + (ball[i]-centerb1)
+        particles.p[num_liquid+i] = center1 + R@(ball[i]-centerb1)
+
+    H = ti.math.mat3([[0,0,0],[0,0,0],[0,0,0]])
+    for i in range(num_solid):
+        a1 = ball2[i][0]-centerb2[0]
+        a2 = ball2[i][1]-centerb2[1]
+        a3 = ball2[i][2]-centerb2[2]
+        b1 = particles.p[num_liquid+i].x - center2[0]
+        b2 = particles.p[num_liquid+i].y - center2[1]
+        b3 = particles.p[num_liquid+i].z - center2[2]
+        H += ti.math.mat3([[a1*b1,a1*b2,a1*b3],[a2*b1,a2*b2,a2*b3],[a3*b1,a3*b2,a3*b3]])
+    U,S,V = ti.svd(H)
+    R = V@U.transpose()
     for i in range(nums2):
-        particles.p[num_liquid+i+nums1] = center2 + (ball2[i]-centerb2)
+        particles.p[num_liquid+i+nums1] = center2 + R@(ball2[i]-centerb2)
 
     ballcenter1 = center1
     ballcenter2 = center2
