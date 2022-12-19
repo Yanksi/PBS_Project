@@ -9,7 +9,7 @@ ti.init(
     arch=ti.gpu
 )
 
-with open("pbd_config_2p.yml", "r") as f:
+with open("pbd_config_fs.yml", "r") as f:
     try:
         config = yaml.safe_load(f)
     except yaml.YAMLError as exc:

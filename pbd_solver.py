@@ -208,22 +208,27 @@ class PBD_Solver:
             dp = self.vec(0)
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, dp)
             self.particles[i].p += dp
+            self.solver_particles[i].p0 += dp
 
     @ti.kernel
     def solve_rigid_constraints(self, start: int, end: int):
         # start and end here indicates the start and end idx in self.obj_particle_ids
-        mA = self.mat(0)
         # compute run-time center of mass
         c = self.vec(0)
-        for i in range(start, end):
+        for ii in range(start, end):
+            i = self.obj_particle_ids[ii]
             c += self.particles[i].p
         c /= (end - start)
-        for i in range(start, end):
+        mA = self.mat(0)
+        for ii in range(start, end):
+            i = self.obj_particle_ids[ii]
             mA += (self.particles[i].p - c).outer_product(self.particles[i].r)
         Q,_ = ti._funcs.polar_decompose(mA)
-        for i in range(start, end):
+        for ii in range(start, end):
+            i = self.obj_particle_ids[ii]
             dp = (Q @ self.particles[i].r + c) - self.particles[i].p
             self.particles[i].p += dp
+            self.solver_particles[i].dSDF = Q @ self.particles[i].dSDF
 
     
     @ti.func
