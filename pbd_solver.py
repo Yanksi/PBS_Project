@@ -213,15 +213,19 @@ class PBD_Solver:
 
                 wi = material_i.mass_per_particle_inv
                 wj = material_j.mass_per_particle_inv
-                ret -= wi / (wi + wj) * (d * n)
+                ret[0] -= wi / (wi + wj) * (d * n)
+                ret[1] += 1
 
     @ti.kernel
     def solve_contact_constraints(self):
         for i in self.particles:
             dp = self.vec(0)
-            self.particle_grid.for_all_neighbors(i, self.solve_contact_task, dp)
-            self.particles[i].p += dp
-            self.solver_particles[i].p0 += dp
+            n = 0
+            ret = [dp, n]
+            self.particle_grid.for_all_neighbors(i, self.solve_contact_task, ret)
+            if n > 0:
+                self.particles[i].p += dp / n
+                self.solver_particles[i].p0 += dp / n
 
     @ti.kernel
     def solve_rigid_constraints(self, start: int, end: int):

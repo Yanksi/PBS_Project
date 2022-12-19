@@ -10,16 +10,16 @@ materials:
         color: [0.26666667, 1.        , 0.82352941]
     -
         is_liquid: 0
-        density: 0.5
+        density: 0.01
         color: [0.82352941, 1.        , 0.26666667]
 objects:
-    # -
-    #     material: 0
-    #     shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
-    #     # cube parameters:
-    #     # start: [3, 3, 3]
-    #     size: [15, 10, 15]
-    #     center: [10, 10, 10]
+    -
+        material: 0
+        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
+        # cube parameters:
+        # start: [3, 3, 3]
+        size: [15, 10, 15]
+        center: [7.5, 5, 7.5]
         # obj parameters:
         # TODO: not yet implmented
         # shape: ellip
@@ -29,8 +29,8 @@ objects:
     -
         material: 1
         shape: cube
-        size: [2, 2, 2]
-        center: [10, 18, 10]
+        size: [5, 5, 5]
+        center: [10, 17, 10]
 solver:
     type: PBD
     # PBF parameters
