@@ -208,6 +208,7 @@ class PBD_Solver:
             dp = self.vec(0)
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, dp)
             self.particles[i].p += dp
+            self.solver_particles[i].p0 += dp
 
     @ti.kernel
     def solve_rigid_constraints(self, start: int, end: int):
