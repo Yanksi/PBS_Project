@@ -23,7 +23,7 @@ d_sleep_threshold = 0.25
 
 d_constraint_avg = False
 
-rigid_dist_k = 0.8
+rigid_dist_k = 1.2
 
 @ti.data_oriented
 class PBD_Solver:
@@ -143,7 +143,7 @@ class PBD_Solver:
         ret[0] += mass_pi * self.poly6(d2) * (rigid_dist_k if self.materials[self.particles[pjd].material].is_liquid == 0 else 1)
 
         d = ti.sqrt(d2)
-        s = self.d_spiky(dist, d) * dens_pi_inv
+        s = self.d_spiky(dist, d) * dens_pi_inv * (rigid_dist_k if self.materials[self.particles[pjd].material].is_liquid == 0 else 1)
         ret[1] += s
         ret[2] += s.dot(s) * self.min_mass_inv
 
