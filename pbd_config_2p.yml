@@ -18,14 +18,14 @@ objects:
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
         # start: [3, 3, 3]
-        size: [8, 10, 8]
+        size: [10, 10, 10]
         center: [5, 10, 5]
     -
         material: 1
         shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
         # cube parameters:
         # start: [3, 3, 3]
-        size: [8, 10, 8]
+        size: [10, 10, 10]
         center: [15, 10, 15]
         # obj parameters:
         # TODO: not yet implmented

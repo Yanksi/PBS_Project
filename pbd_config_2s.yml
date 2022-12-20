@@ -2,7 +2,7 @@ dims: 3
 domain_sz: [20,20,20] # optional
 particle_radius: 0.2 # optional, support radius will be 4 times this value
 # padding: 0.4 # optional, default to support radius
-dt: 0.05
+dt: 0.02
 materials:
     -
         is_liquid: 0

@@ -20,12 +20,6 @@ objects:
         # start: [3, 3, 3]
         size: [15, 10, 15]
         center: [7.5, 5, 7.5]
-        # obj parameters:
-        # TODO: not yet implmented
-        # shape: ellip
-        # center: [0.5, 0.5, 0.5] # can use either center or start to define the location
-        # # start: [0.0, 0.0, 0.0] # if both are specified, will use start
-        # size: [0.3, 0.2, 0.5]
     -
         material: 1
         shape: cube
