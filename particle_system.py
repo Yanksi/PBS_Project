@@ -278,7 +278,7 @@ class ParticleSystem:
         temp = (dist_to_bounds == min_dists[:,None]).astype(np.float64)
         dsdf = temp[:,3:] - temp[:,:3]
 
-        dsdf /= np.linalg.norm(dsdf, axis=1, keepdims=True)
+        # dsdf /= (np.linalg.norm(dsdf, axis=1, keepdims=True) + 1e-16)
 
         # dsdf = np.zeros((len(dist_idx), self.dim))
         # dsdf[np.arange(len(dist_idx)),dist_idx % 3] = 1

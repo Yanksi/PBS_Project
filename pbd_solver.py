@@ -23,7 +23,7 @@ d_sleep_threshold = 0.25
 
 d_constraint_avg = False
 
-rigid_dist_k = 1.2
+rigid_dist_k = 0.8
 
 @ti.data_oriented
 class PBD_Solver:
@@ -191,13 +191,13 @@ class PBD_Solver:
             if dist.norm() < self.particle_grid.particle_diameter:
                 sdfi = self.particles[pid].SDF
                 sdfj = self.particles[pjd].SDF
-                d = self.particle_grid.particle_diameter - dist.norm()
+                d = 0.0
                 n = self.vec(0.0)
                 if sdfi < sdfj or (sdfi == sdfj and pid < pjd):
-                    # d = sdfi
+                    d = sdfi
                     n = self.solver_particles[pid].dSDF
                 else:
-                    # d = sdfj
+                    d = sdfj
                     n = -self.solver_particles[pjd].dSDF
                 # i_sqnorm = self.solver_particles[pid].dSDF.dot(self.solver_particles[pid].dSDF)
                 # j_sqnorm = self.solver_particles[pjd].dSDF.dot(self.solver_particles[pjd].dSDF)
