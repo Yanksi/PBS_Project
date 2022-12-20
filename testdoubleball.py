@@ -391,7 +391,7 @@ def shape_matching():
 
     ballcenter1 = center1
     ballcenter2 = center2
-    print(center1, center2)
+    # print(center1, center2)
 
 @ti.kernel
 def pbf_update():

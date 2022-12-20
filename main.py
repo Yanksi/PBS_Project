@@ -52,7 +52,7 @@ while window.running:
     if window.is_pressed(ti.ui.UP): ws = 1
     elif window.is_pressed(ti.ui.DOWN): ws = -1
 
-    if window.is_pressed(ti.ui.SPACE): animating = not animating
+    if window.is_pressed(ti.ui.SPACE): animating = True
 
     if particle_grid.dim == 2:
         ext_acc = ti.math.vec2(0, -9.8) + ad * ti.math.vec2(5, 0)
