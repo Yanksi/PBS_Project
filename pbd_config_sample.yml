@@ -1,0 +1,52 @@
+domain_sz: [20,20,20] # optional, default value [1,1,1]
+particle_radius: 0.25 # optional, default value 0.01, support radius will be 4 times this value
+# padding: 0.4 # optional, the padding distance applied at the boundary of the simulation box
+dt: 0.05
+materials:
+    -
+        is_liquid: 1
+        density: 1
+        color: [0.26666667, 1.        , 0.82352941]
+    -
+        is_liquid: 1
+        density: 0.4
+        color: [0.82352941, 1.        , 0.26666667]
+objects:
+    -
+        material: 0
+        shape: cube # should be either cube or sphere
+        # cube parameters:
+        # start: [3, 3, 3] # the location of the cube can be specified with either the minimum corner of the cube
+        center: [7.5, 5, 7.5] # or the center of the cube
+        size: [15, 10, 15]
+        thickness: 0 # use 0 to initialize a solid shape
+    -
+        material: 1
+        shape: cube
+        size: [5, 5, 5]
+        center: [10, 15, 10]
+        thickness: 2 # use a positive value to specify the desired thickness of the shell of the shape
+
+    -
+        material: 1
+        shape: sphere
+        radius: 5
+        center: [16, 17, 16]
+        thickness: 2
+solver:
+    # PBF parameters
+    # -S_CORR-
+    S_Corr_delta_q: 0.3 # optional, default 0.3, actual value would be this value times support radius, should between 0 and 1, best in [0.1, 0.3]
+    S_Corr_k: 0.0001 # optional, default 0.0001
+    S_Corr_n: 4 # optional, default 4
+
+    lambda_epsilon: 100.0 # optional, default 100
+
+    # -Confinement / XSPH Viscosity-
+    xsph_c: 0.01 # optional, default 0.01
+    vorti_epsilon: 0.01 # optional, default 0.01
+
+    solver_iteration: 20 # optional, default 20, specify the number of solver iterations will take on all constraints other than contact constraints
+    stabilization_iteration: 50 # optional, default 10, specify the number of contact solving interations will be taken in a single timestep
+    sleep_threshold: 0.25 # optional, default 0.25, the maganitude of the particle sleep threshold will be defined by this value times the support radius
+

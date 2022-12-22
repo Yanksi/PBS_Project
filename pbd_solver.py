@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, mat3, mat2
+from taichi.math import vec3, mat3
 from particle_system import ParticleSystem
 import math
 import numpy as np
@@ -23,16 +23,13 @@ d_sleep_threshold = 0.25
 
 d_constraint_avg = False
 
-rigid_dist_k = 1.2
+rigid_dist_k = 2
 
 @ti.data_oriented
 class PBD_Solver:
     def __init__(self, particle_grid: ParticleSystem, config):
         self.particle_grid = particle_grid
-        self.dim = self.particle_grid.dim
         self.world_sz = self.particle_grid.domain_sz
-        self.vec = self.particle_grid.vec
-        self.mat = self.particle_grid.mat
         self.particles = self.particle_grid.particle_field
         self.materials = self.particle_grid.materials
         self.solid_regions = self.particle_grid.solid_regions
@@ -40,14 +37,14 @@ class PBD_Solver:
         self.obj_particle_ids = self.particle_grid.obj_particle_ids
         @ti.dataclass
         class SolverParticle:
-            v: self.vec # velocity
-            p0: self.vec # previous position
+            v: vec3 # velocity
+            p0: vec3 # previous position
             l: float # lagrange multiplier
             # mass: float # runtime mass of particles
 
             # for liquid
             # for rigid
-            dSDF: self.vec # runtime dSDF
+            dSDF: vec3 # runtime dSDF
         
         self.solver_particles = self.particle_grid.register_solver_particles(SolverParticle)
         self.h = self.particle_grid.support_radius
@@ -69,15 +66,6 @@ class PBD_Solver:
         self.solver_iteration = config["solver"].get("solver_iteration", d_solver_iteration)
         self.stab_iteration = config["solver"].get("stabilization_iteration", d_stab_iteration)
         self.sleep_threshold = config["solver"].get("sleep_threshold", d_sleep_threshold) * self.h
-        self.constraint_ave = config["solver"].get("constraint_averaging", d_constraint_avg)
-
-        # used to get rid of compilation error in 2D mode
-        dummy = np.eye(3)
-        if self.dim == 2:
-            dummy = dummy[:,:2]
-        self.dummy_mat = ti.Matrix(dummy)
-        self.dummy_matT = self.dummy_mat.transpose()
-
 
     @ti.func
     def poly6(self, d2: float) -> float:
@@ -88,7 +76,7 @@ class PBD_Solver:
     
     @ti.func
     def d_spiky(self, d, dn):
-        result = self.vec(0.0)
+        result = vec3(0.0)
         if dn > 0.0:
             result = self.d_spiky_coeff * ti.pow(self.h - dn, 2) / dn * d
         return result
@@ -117,26 +105,24 @@ class PBD_Solver:
     
     @ti.func
     def clip_boundary(self, position):
-        lower = self.vec(self.padding)
-        upper = self.vec(self.world_sz) - self.vec(self.padding)
+        lower = vec3(self.padding)
+        upper = vec3(self.world_sz) - vec3(self.padding)
         return ti.max(ti.min(position, upper), lower)
     
     def advect(self, external_acc):
         @ti.kernel
-        def _inner(external_acc: self.vec):
+        def _inner(external_acc: vec3):
             for p in self.particles:
                 if self.materials[self.particles[p].material].is_dynamic:
                     self.solver_particles[p].p0 = self.particles[p].p
                     self.solver_particles[p].v += self.dt * external_acc
                     self.particles[p].p = self.clip_boundary(self.particles[p].p + self.dt * self.solver_particles[p].v)
-                    # TODO Implement mass scaling here
         self.__setattr__("advect", _inner)
         _inner(external_acc)
 
     
     @ti.func
     def solve_task_lambda(self, pid, pjd, dist, d2, ret:ti.template()):
-        # TODO: consider for case which the mateiral of the given two particles are different
         material_pi = self.materials[self.particles[pid].material]
         mass_pi = material_pi.mass_per_particle
         dens_pi_inv = material_pi.rest_density_inv
@@ -149,9 +135,6 @@ class PBD_Solver:
 
     @ti.func
     def solve_task_delta_p(self, pid, pjd, dist, d2, ret:ti.template()):
-        # TODO: consider for case which the mateiral of the given two particles are different
-        
-        # TODO: Small optimization, can put both dens_pi_inv and mass_per_particle_inv out
         material_pi = self.materials[self.particles[pid].material]
         dens_pi_inv = material_pi.rest_density_inv
         scorr = self.S_Corr(d2)
@@ -166,7 +149,7 @@ class PBD_Solver:
             pid = self.obj_particle_ids[i]
             dens_pi_inv = self.materials[self.particles[pid].material].rest_density_inv
             p_i = 0.0
-            d_spiky_i = self.vec(0)
+            d_spiky_i = vec3(0)
             lower_sum = 0.0
             ret = [p_i, d_spiky_i, lower_sum]
             self.particle_grid.for_all_neighbors(pid, self.solve_task_lambda, ret)
@@ -177,10 +160,8 @@ class PBD_Solver:
         
         for i in range(start, end):
             pid = self.obj_particle_ids[i]
-            dp = self.vec(0)
-            n_constraints = self.particle_grid.for_all_neighbors(pid, self.solve_task_delta_p, dp)
-            if ti.static(self.constraint_ave):
-                dp = dp * 3.0 / n_constraints
+            dp = vec3(0)
+            self.particle_grid.for_all_neighbors(pid, self.solve_task_delta_p, dp)
             self.particles[pid].p += dp # constraint averaging is not working well with liquid constraints for some reason
     
     @ti.func
@@ -192,7 +173,7 @@ class PBD_Solver:
                 sdfi = self.particles[pid].SDF
                 sdfj = self.particles[pjd].SDF
                 d = 0.0
-                n = self.vec(0.0)
+                n = vec3(0.0)
                 if sdfi < sdfj or (sdfi == sdfj and pid < pjd):
                     d = sdfi
                     n = self.solver_particles[pid].dSDF
@@ -219,13 +200,14 @@ class PBD_Solver:
     @ti.kernel
     def solve_contact_constraints(self):
         for i in self.particles:
-            dp = self.vec(0)
+            dp = vec3(0)
             n = 0
             ret = [dp, n]
             self.particle_grid.for_all_neighbors(i, self.solve_contact_task, ret)
             dp, n = ret
             if n > 0:
                 dp /= (self.stab_iteration / 2)
+                # dp /= n
                 # dp /= (2)
                 self.particles[i].p += dp
                 self.solver_particles[i].p0 += dp
@@ -234,12 +216,12 @@ class PBD_Solver:
     def solve_rigid_constraints(self, start: int, end: int):
         # start and end here indicates the start and end idx in self.obj_particle_ids
         # compute run-time center of mass
-        c = self.vec(0)
+        c = vec3(0)
         for ii in range(start, end):
             i = self.obj_particle_ids[ii]
             c += self.particles[i].p
         c /= (end - start)
-        mA = self.mat(0)
+        mA = mat3(0)
         for ii in range(start, end):
             i = self.obj_particle_ids[ii]
             mA += (self.particles[i].p - c).outer_product(self.particles[i].r)
@@ -253,20 +235,18 @@ class PBD_Solver:
     
     @ti.func
     def liquid_finalize_task(self, pid, pjd, dist, d2, ret:ti.template()):
-        # TODO: consider for case which the mateiral of the given two particles are different
         v_ij = self.solver_particles[pjd].v - self.solver_particles[pid].v
         poly = self.poly6(d2)
         ret[0] += poly * v_ij
         dn = ti.sqrt(d2)
-        if ti.static(self.dim == 3):
-            ret[1] += v_ij.cross(self.d_spiky(dist, dn))
-            ret[2] += self.cross_mat(self.dummy_mat @ v_ij) @ self.dd_spiky(self.dummy_mat @ dist, d2, dn)
+        ret[1] += v_ij.cross(self.d_spiky(dist, dn))
+        ret[2] += self.cross_mat(v_ij) @ self.dd_spiky(dist, d2, dn)
 
     @ti.kernel
     def liquid_finalize_step(self, start: int, end: int):
         for i in range(start, end):
             p = self.obj_particle_ids[i]
-            xsph_sum = self.vec(0)
+            xsph_sum = vec3(0)
             omega_sum = vec3(0)
             d_omega_p = mat3(0)
             ret = [xsph_sum, omega_sum, d_omega_p]
@@ -274,13 +254,12 @@ class PBD_Solver:
             xsph_sum, omega_sum, d_omega_p = ret
             xsph_sum *= self.xsph_c
             self.solver_particles[p].v += xsph_sum
-            if ti.static(self.dim == 3):
-                omega = omega_sum.normalized()
-                n = d_omega_p @ omega
-                big_n = n.normalized()
-                if omega_sum.norm() > 0.0:
-                    vort = self.vorti_epsilon * big_n.cross(omega_sum)
-                    self.solver_particles[p].v += self.dt * self.dummy_matT @ vort
+            omega = omega_sum.normalized()
+            n = d_omega_p @ omega
+            big_n = n.normalized()
+            if omega_sum.norm() > 0.0:
+                vort = self.vorti_epsilon * big_n.cross(omega_sum)
+                self.solver_particles[p].v += self.dt * vort
 
     @ti.kernel
     def finalize_step(self):

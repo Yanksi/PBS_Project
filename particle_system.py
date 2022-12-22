@@ -24,43 +24,29 @@ obj_particle_sort = False
 @ti.data_oriented
 class ParticleSystem:
     def __init__(self, configs:dict):
-        self.dim = configs["dims"]
         self.configs = configs
-
-        if self.dim == 2:
-            self.vec = vec2
-            self.ivec = ivec2
-            self.mat = mat2
-        elif self.dim == 3:
-            self.vec = vec3
-            self.ivec = ivec3
-            self.mat = mat3
-        else:
-            print("dimension can only be 2 or 3")
-            exit()
         
         # particles used during the simulation
         @ti.dataclass
         class Particle:
-            p: self.vec # position
+            p: vec3 # position
             color: vec3
             material: int
             particle_id: int
             obj_id: int
             SDF: float
-            dSDF: self.vec
-            r: self.vec # used in rigid body constraint
+            dSDF: vec3
+            r: vec3 # used in rigid body constraint
 
-        self.domain_sz = np.array(configs.get("domain_sz", [domain_axis_sz] * self.dim))
-        assert(len(self.domain_sz) == self.dim, "Given domain size and dimension does not match!")
+        self.domain_sz = np.array(configs.get("domain_sz", [domain_axis_sz] * 3))
 
         self.particle_radius = configs.get("particle_radius", particle_radius)
         self.particle_diameter = 2 * self.particle_radius
         self.support_radius = self.particle_radius * 4
-        # self.m_V0 = 0.8 * self.particle_diameter ** self.dim
+        # self.m_V0 = 0.8 * self.particle_diameter ** 3
 
         self.materials = Material.field(shape=(len(configs["materials"])))
-        particle_volumn = self.particle_diameter ** self.dim
+        particle_volumn = self.particle_diameter ** 3
         self.min_mass = float('inf')
         for i, m in enumerate(configs["materials"]):
             is_liquid = m["is_liquid"]
@@ -76,9 +62,9 @@ class ParticleSystem:
             )
 
         self.grid_cell_sz = self.support_radius
-        self.grid_num = self.ivec(np.ceil(self.domain_sz / self.grid_cell_sz).astype(np.int32))
+        self.grid_num = ivec3(np.ceil(self.domain_sz / self.grid_cell_sz).astype(np.int32))
         temp = np.cumprod(self.grid_num)
-        self.grid_szs = self.ivec(1, *temp[:-1])
+        self.grid_szs = ivec3(1, *temp[:-1])
         self.num_cells = int(temp[-1])
 
         self.particle_positions_list = []
@@ -99,20 +85,15 @@ class ParticleSystem:
                 else:
                     center = np.array(m["center"])
                     start = center - sz / 2
-                pp, pm, pc, sdf, dsdf = self.generate_particles_for_cube(start, sz, obj_material)
-            elif obj_shape == "ellip":
-                sz = np.array(m["size"])
-                if "start" in m:
-                    start = np.array(m["start"])
-                else:
-                    center = np.array(m["center"])
-                    start = center - sz / 2
-                pp, pm, pc, sdf, dsdf = self.generate_particles_for_ellip(start, sz, obj_material)
-            elif obj_shape.endswith("obj"):
-                # TODO: implement obj
-                pass
+                thickness = m.get("thickness", 0)
+                pp, pm, pc, sdf, dsdf = self.generate_particles_for_cube(start, sz, obj_material, thickness)
+            elif obj_shape == "sphere":
+                center = np.array(m["center"])
+                radius = m["radius"]
+                thickness = m.get("thickness", 0)
+                pp, pm, pc, sdf, dsdf = self.generate_particles_for_sphere(center, radius, obj_material, thickness)
             else:
-                continue
+                print(f"unsupported shape encountered: {obj_shape}")
             self.particle_positions_list.append(pp)
             self.materials_list.append(pm)
             self.colors_list.append(pc)
@@ -138,7 +119,6 @@ class ParticleSystem:
         self.liquid_regions = []
         self.solid_regions = []
         for oi, (op, om, oc, osdf, odsdf) in enumerate(zip(self.particle_positions_list, self.materials_list, self.colors_list, self.sdf_list, self.dsdf_list)):
-            # TODO: use real sdf and dsdf here
             if self.materials[om[0]].is_liquid == 0:
                 c = op.mean(axis=0)
                 r = op - c
@@ -146,8 +126,8 @@ class ParticleSystem:
                 dsdf = odsdf
             else:
                 sdf = np.full(len(op), np.inf, float)
-                dsdf = np.zeros((len(op), self.dim))
-                r = np.zeros((len(op), self.dim))
+                dsdf = np.zeros((len(op), 3))
+                r = np.zeros((len(op), 3))
 
             self._add_obj(idx_base, oi, len(op), op, om, oc, sdf, dsdf, r)
             if self.materials[om[0]].is_liquid:
@@ -246,23 +226,36 @@ class ParticleSystem:
         ):
         # print(particle_pos.shape)
         for i in range(idx_base, idx_base + particle_num):
-            self.particle_field[i].p = self.vec([particle_pos[i - idx_base, j] for j in ti.static(range(self.dim))])
+            self.particle_field[i].p = vec3([particle_pos[i - idx_base, j] for j in ti.static(range(3))])
             self.particle_field[i].color = vec3([particle_colors[i - idx_base, j] for j in ti.static(range(3))])
             self.particle_field[i].material = material_arr[i - idx_base]
             self.particle_field[i].particle_id = i
             self.particle_field[i].obj_id = obj_id
             self.particle_field[i].SDF = SDF[i - idx_base]
-            self.particle_field[i].dSDF = self.vec([dSDF[i - idx_base, j] for j in ti.static(range(self.dim))])
-            self.particle_field[i].r = self.vec([r[i - idx_base, j] for j in ti.static(range(self.dim))])
+            self.particle_field[i].dSDF = vec3([dSDF[i - idx_base, j] for j in ti.static(range(3))])
+            self.particle_field[i].r = vec3([r[i - idx_base, j] for j in ti.static(range(3))])
             self.obj_particle_ids[i] = i
 
-    def generate_particles_for_cube(self, lower_corner, size, material):
-        slices = tuple(slice(lower_corner[i] + self.particle_radius, lower_corner[i] + size[i] - self.particle_radius, self.particle_diameter) for i in range(self.dim))
-        particle_positions = np.mgrid[slices].reshape(self.dim, -1).transpose()
+    def generate_particles_for_cube(self, lower_corner, size, material, thickness):
+        slices = tuple(
+            slice(
+                lower_corner[i] + self.particle_radius,
+                lower_corner[i] + size[i] - self.particle_radius,
+                self.particle_diameter
+                ) for i in range(3))
+        particle_positions = np.mgrid[slices].reshape(3, -1).transpose()
         center = np.median(particle_positions, axis=0)
         particle_positions = particle_positions - center + lower_corner + size / 2
         lower_corner = particle_positions.min(axis=0) - self.particle_radius
         size = particle_positions.max(axis=0) - lower_corner + self.particle_radius
+        if(thickness>0 and thickness<size.min()/3):
+            dist_to_lower = particle_positions - lower_corner
+            dist_to_higher = size - dist_to_lower
+            dist_to_bounds = np.concatenate((dist_to_lower, dist_to_higher), axis=1)
+            mask=(dist_to_bounds<thickness).any(axis=1)
+            particle_positions=particle_positions[mask]
+        np.random.shuffle(particle_positions)
+        print("cube num particles:",len(particle_positions))
 
         num_new_particles = particle_positions.shape[0]
         material_arr = np.full(num_new_particles, material, dtype=int)
@@ -280,29 +273,37 @@ class ParticleSystem:
 
         # dsdf /= (np.linalg.norm(dsdf, axis=1, keepdims=True) + 1e-16)
 
-        # dsdf = np.zeros((len(dist_idx), self.dim))
+        # dsdf = np.zeros((len(dist_idx), 3))
         # dsdf[np.arange(len(dist_idx)),dist_idx % 3] = 1
         # dsdf[dist_idx < 3] *= -1
         return particle_positions, material_arr, colors, sdf, dsdf
     
-    def generate_particles_for_ellip(self, lower_corner, size, material):
-        particle_pos, ma, pc, _, _ = self.generate_particles_for_cube(lower_corner, size, material)
+    def generate_particles_for_sphere(self, center, radius, material, thickness):
+        lower_corner=center-radius*1.2
+        size=np.array([2*radius*1.2]*3)
+        particle_pos, ma, pc, _, _ = self.generate_particles_for_cube(lower_corner, size, material,0)
         center = np.median(particle_pos, axis=0)
-        particle_pos -= center
-        size_inv = 1 / (size / 2) ** 2
-        measure = (particle_pos ** 2).dot(size_inv) < 1
-        particle_pos = (particle_pos + center)[measure]
-        ma = ma[measure]
-        pc = pc[measure]
-        sdf = np.full(len(pc), self.particle_diameter, float)
-        dsdf = np.zeros((len(pc), self.dim))
+        # particle_pos+=np.random.randn(particle_pos.shape[0],particle_pos.shape[1])*self.particle_radius/2
+        d= particle_pos - center
+        r = np.linalg.norm(d,axis=1)
+        mask=r <= radius 
+        print(thickness)
+        if(thickness>0 and thickness<radius):
+            mask &=  r>=(radius-thickness)
+        particle_pos = particle_pos[mask]
+        ma = ma[mask]
+        pc = pc[mask]
+        r=r[mask]
+        d=d[mask]
+        sdf = radius-r
+        dsdf = d/r[:,None]
         return particle_pos, ma, pc, sdf, dsdf
     
     @ti.func
     def for_all_neighbors(self, p_i, task: ti.template(), ret: ti.template()) -> int:
         center_cell = self.get_grid_idx(self.particle_field[p_i].p)
         result = 0
-        for offset in ti.grouped(ti.ndrange(*((-1, 2),) * self.dim)):
+        for offset in ti.grouped(ti.ndrange(*((-1, 2),) * 3)):
             nb = center_cell + offset
             if (0 <= nb).all() and (nb < self.grid_num).all():
                 id = self.get_flattened_idx(nb)
