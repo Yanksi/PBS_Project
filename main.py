@@ -1,15 +1,14 @@
+import argparse
+
+parser=argparse.ArgumentParser()
+parser.add_argument("--cfg",type=str,default="pbd_config_fluid.yml")
+args=parser.parse_args()
+
 from particle_system import ParticleSystem
-from pbf_solver import PBF_Solver
 from pbd_solver import PBD_Solver
 import yaml
 import taichi as ti
 import numpy as np
-import argparse
-
-parser=argparse.ArgumentParser()
-parser.add_argument("--cfg",type=str,default="pbd_config_2f2s.yml")
-args=parser.parse_args()
-
 ti.init(
     arch=ti.gpu
 )
@@ -39,6 +38,7 @@ frame_count = 0
 gui = window.get_gui()
 
 animating = False
+toggle_enabled = True
 while window.running:
     ad = 0.0
     ws = 0.0
@@ -49,10 +49,12 @@ while window.running:
     if window.is_pressed(ti.ui.UP): ws = 1
     elif window.is_pressed(ti.ui.DOWN): ws = -1
 
-    if window.is_pressed(ti.ui.RETURN):
-        animating = False
     if window.is_pressed(ti.ui.SPACE):
-        animating = True
+        if toggle_enabled:
+            animating = not animating
+            toggle_enabled = False
+    else:
+        toggle_enabled = True
 
     ext_acc = (ti.math.vec3(0,-9.8,0) + ad * ti.math.vec3(5,0,-5) + ws * ti.math.vec3(-5,0,-5)).normalized() * 9.8
     if animating:

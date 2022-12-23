@@ -20,6 +20,7 @@ python main.py --cfg CONFIG_FILE
 Example configurations:
 | File     | Content |
 | ----------- | ----------- |
+| pbd_config_sample | Documentation of config files |
 | pbd_config_fluid.yml | Position Based fluid |
 | pbd_config_2s | Solid-Solid interaction |
 | pbd_config_2p | Liquid-Liquid interaction |
@@ -29,7 +30,6 @@ Example configurations:
 
 | Key      | Action |
 | ----------- | ----------- |
-| Space | Start Simulation|
-|Enter | Pause Simulation |
+| Space | Start/Pause Simulation|
 | Q/W/E/A/S/D      | Navigation       |
 | &uarr;/&darr;/&larr;/&rarr;   | Gravity direction        |
