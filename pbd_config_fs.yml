@@ -14,8 +14,6 @@ objects:
     -
         material: 0
         shape: cube
-        # cube parameters:
-        # start: [3, 3, 3]
         size: [15, 10, 15]
         center: [7.5, 5, 7.5]
     -
