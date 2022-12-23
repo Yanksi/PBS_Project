@@ -18,11 +18,11 @@ objects:
         center: [7.5, 5, 7.5]
     -
         material: 1
-        shape: cube
+        shape: cube # or sphere
         size: [5, 5, 5]
+        radius: 3
         center: [10, 13, 10]
-        thickness: 2
-
+        thickness: 1
 solver:
     type: PBD
-    stabilization_iteration: 50
+    stabilization_iteration: 20

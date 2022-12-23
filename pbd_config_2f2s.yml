@@ -44,4 +44,4 @@ objects:
         center: [4, 15, 10]
         thickness: 1
 solver:
-    stabilization_iteration: 50
+    stabilization_iteration: 20

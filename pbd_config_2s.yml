@@ -25,5 +25,5 @@ objects:
         thickness: 1
 solver:
     type: PBD
-    stabilization_iteration: 50
+    stabilization_iteration: 30
 

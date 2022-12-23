@@ -272,11 +272,11 @@ class PBD_Solver:
         self.particle_grid.counting_sort()
         for _ in range(self.stab_iteration):
             self.solve_contact_constraints()
-        for _ in range(self.solver_iteration):
             for start, end in self.solid_regions:
                 self.solve_rigid_constraints(start, end)
+        for _ in range(self.solver_iteration):
             for start, end in self.liquid_regions:
-                self.solve_liquid_constraints(start, end)
+                    self.solve_liquid_constraints(start, end)
         self.finalize_step()
         for start, end in self.liquid_regions:
             self.liquid_finalize_step(start, end)
