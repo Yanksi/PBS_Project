@@ -17,7 +17,7 @@ class Material:
 domain_axis_sz = 1.0
 particle_radius = 0.01
 
-liquid_volumn_k = 1 / 0.8
+liquid_volumn_k = 0.8
 
 obj_particle_sort = False
 
