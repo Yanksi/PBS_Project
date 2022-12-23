@@ -279,24 +279,23 @@ class ParticleSystem:
         return particle_positions, material_arr, colors, sdf, dsdf
     
     def generate_particles_for_sphere(self, center, radius, material, thickness):
-        lower_corner=center-radius*1.2
-        size=np.array([2*radius*1.2]*3)
-        particle_pos, ma, pc, _, _ = self.generate_particles_for_cube(lower_corner, size, material,0)
-        center = np.median(particle_pos, axis=0)
+        lower_corner = center - radius * 1.2
+        size = np.array([2 * radius * 1.2] * 3)
+        particle_pos, ma, pc, _, _ = self.generate_particles_for_cube(lower_corner, size, material, 0)
+        center = np.median(particle_pos, axis = 0)
         # particle_pos+=np.random.randn(particle_pos.shape[0],particle_pos.shape[1])*self.particle_radius/2
-        d= particle_pos - center
-        r = np.linalg.norm(d,axis=1)
-        mask=r <= radius 
-        print(thickness)
-        if(thickness>0 and thickness<radius):
-            mask &=  r>=(radius-thickness)
+        d = particle_pos - center
+        r = np.linalg.norm(d, axis = 1)
+        mask = r <= radius 
+        if(thickness > 0 and thickness < radius):
+            mask &=  r >= (radius-thickness)
         particle_pos = particle_pos[mask]
         ma = ma[mask]
         pc = pc[mask]
-        r=r[mask]
-        d=d[mask]
-        sdf = radius-r
-        dsdf = d/r[:,None]
+        r = r[mask]
+        d = d[mask]
+        sdf = radius - r
+        dsdf = d / r[:,None]
         return particle_pos, ma, pc, sdf, dsdf
     
     @ti.func
