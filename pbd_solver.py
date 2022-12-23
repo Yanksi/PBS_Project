@@ -109,16 +109,13 @@ class PBD_Solver:
         upper = vec3(self.world_sz) - vec3(self.padding)
         return ti.max(ti.min(position, upper), lower)
     
-    def advect(self, external_acc):
-        @ti.kernel
-        def _inner(external_acc: vec3):
-            for p in self.particles:
-                if self.materials[self.particles[p].material].is_dynamic:
-                    self.solver_particles[p].p0 = self.particles[p].p
-                    self.solver_particles[p].v += self.dt * external_acc
-                    self.particles[p].p = self.clip_boundary(self.particles[p].p + self.dt * self.solver_particles[p].v)
-        self.__setattr__("advect", _inner)
-        _inner(external_acc)
+    @ti.kernel
+    def advect(self, external_acc: vec3):
+        for p in self.particles:
+            if self.materials[self.particles[p].material].is_dynamic:
+                self.solver_particles[p].p0 = self.particles[p].p
+                self.solver_particles[p].v += self.dt * external_acc
+                self.particles[p].p = self.clip_boundary(self.particles[p].p + self.dt * self.solver_particles[p].v)
 
     
     @ti.func

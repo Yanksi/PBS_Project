@@ -13,7 +13,7 @@ materials:
         color: [0.82352941, 1.        , 0.26666667]
 objects:
     -
-        material: 0
+        material: 0 # the index of the chosen material in the material list
         shape: cube # should be either cube or sphere
         # cube parameters:
         # start: [3, 3, 3] # the location of the cube can be specified with either the minimum corner of the cube

@@ -14,7 +14,7 @@ conda activate pbs
 
 
 ```bash
-python main.py --cfg CONFIG_FILE
+python main.py -cfg CONFIG_FILE
 ```
 
 Example configurations:

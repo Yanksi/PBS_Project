@@ -1,6 +1,5 @@
-domain_sz: [20,20,20] # optional
-particle_radius: 0.25 # optional, support radius will be 4 times this value
-# padding: 0.4 # optional, default to support radius
+domain_sz: [20,20,20]
+particle_radius: 0.25
 dt: 0.05
 materials:
     -
@@ -10,23 +9,8 @@ materials:
 objects:
     -
         material: 0
-        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
-        # cube parameters:
-        # start: [3, 3, 3]
+        shape: cube
         size: [15, 10, 15]
         center: [7.5, 5, 7.5]
 solver:
     type: PBD
-    # PBF parameters
-    # -S_CORR-
-    S_Corr_delta_q: 0.3 # optional, actual value would be this value times support radius, should between 0 and 1, best in [0.1, 0.3]
-    S_Corr_k: 0.0001 # optional, recommanded value as default
-    S_Corr_n: 4 # optional, recommanded value as default
-
-    lambda_epsilon: 100.0 # optional
-
-    # -Confinement / XSPH Viscosity-
-    xsph_c: 0.01 # optional
-    vorti_epsilon: 0.01 # optional
-    solver_iteration: 20 # optional
-    stabilization_iteration: 50

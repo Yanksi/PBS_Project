@@ -1,7 +1,7 @@
 import argparse
 
 parser=argparse.ArgumentParser()
-parser.add_argument("--cfg",type=str,default="pbd_config_fluid.yml")
+parser.add_argument("-cfg",type=str,default="pbd_config_fluid.yml")
 args=parser.parse_args()
 
 from particle_system import ParticleSystem
