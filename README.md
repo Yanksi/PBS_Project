@@ -16,15 +16,20 @@ conda activate pbs
 ```bash
 python main.py -cfg CONFIG_FILE
 ```
+For example:
+```bash
+python main.py -cfg pbd_config_2f2s.yml
+```
 
 Example configurations:
 | File     | Content |
 | ----------- | ----------- |
-| pbd_config_sample | Documentation of config files |
+| pbd_config_sample.yml | Documentation of config files |
 | pbd_config_fluid.yml | Position Based fluid |
-| pbd_config_2s | Solid-Solid interaction |
-| pbd_config_2p | Liquid-Liquid interaction |
-| pbd_config_fs | Solid-Liquid interaction |
+| pbd_config_2s.yml | Solid-Solid interaction |
+| pbd_config_2p.yml | Liquid-Liquid interaction |
+| pbd_config_fs.yml | Solid-Liquid interaction |
+| pbd_config_2f2s.yml | Two Solids in Two Liquids|
 
 ## Control
 
