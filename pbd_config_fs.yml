@@ -13,7 +13,7 @@ materials:
 objects:
     -
         material: 0
-        shape: cube # should be either cube, ellip or the path to the obj file (not yet implemented)
+        shape: cube
         # cube parameters:
         # start: [3, 3, 3]
         size: [15, 10, 15]
