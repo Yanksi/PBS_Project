@@ -38,3 +38,5 @@ Example configurations:
 | Space | Start/Pause Simulation|
 | Q/W/E/A/S/D      | Navigation       |
 | &uarr;/&darr;/&larr;/&rarr;   | Gravity direction        |
+
+## [Video Demo](https://youtu.be/Z5_aBBxgeF4)
